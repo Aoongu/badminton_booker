@@ -445,6 +445,7 @@ async function fireBooking() {
   const encrypted = encrypt(body);
   log('inf', `AES 加密完成 (${encrypted.length} chars)`);
 
+  /*
   const t0 = Date.now();
   try {
     const res = await fetch(
@@ -455,6 +456,18 @@ async function fireBooking() {
         body: JSON.stringify({ item: encrypted })
       }
     );
+    */
+  const t0 = Date.now();
+  try {
+    const res = await fetch(
+      'https://autumn-water-61ca.1713885931.workers.dev/service/appointment/appointment/phone/createBookingBytime',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'token': token },
+        body: JSON.stringify({ item: encrypted })
+      }
+    );
+
     const ms = Date.now() - t0;
     const data = await res.json();
     log('inf', `响应 ${res.status} (${ms}ms): ${JSON.stringify(data)}`);
