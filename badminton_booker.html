@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>🏸 羽毛球抢场神器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --accent: #3b82f6;
+    --accent2: #60a5fa;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #f1f5f9;
+    --text2: #94a3b8;
+    --border: #1e2d45;
+    --glow: 0 0 20px rgba(59,130,246,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+  }
+  .header h1 span { color: var(--accent2); }
+  .header p {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+
+  /* Countdown */
+  .countdown-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin: 16px;
+    padding: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .countdown-box.active {
+    border-color: var(--accent);
+    box-shadow: var(--glow);
+  }
+  .countdown-box.firing {
+    border-color: var(--warning);
+    box-shadow: 0 0 20px rgba(245,158,11,0.4);
+    animation: pulse 0.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  .countdown-label {
+    font-size: 11px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .countdown-time {
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    color: var(--accent2);
+    font-variant-numeric: tabular-nums;
+  }
+  .countdown-time.warning { color: var(--warning); }
+  .countdown-time.ready { color: var(--success); }
+  .countdown-date {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 6px;
+  }
+
+  /* Target info */
+  .target-bar {
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 10px;
+    margin: 0 16px 4px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .target-bar .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+    animation: blink 2s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Sections */
+  .section {
+    margin: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .section-title {
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .icon { font-size: 14px; }
+
+  /* Form rows */
+  .form-row {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .form-row:last-child { border-bottom: none; }
+  .form-label {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .form-hint {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+
+  input[type="text"], input[type="time"], textarea, select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus, input[type="time"]:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+  }
+  textarea {
+    resize: none;
+    width: 100%;
+    margin-top: 8px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .token-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Court selector */
+  .court-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    padding: 14px 16px;
+  }
+  .court-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text2);
+    padding: 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .court-btn:active { transform: scale(0.95); }
+  .court-btn.selected {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    box-shadow: 0 0 10px rgba(59,130,246,0.4);
+  }
+  .court-btn.any {
+    grid-column: 1 / -1;
+    background: rgba(16,185,129,0.1);
+    border-color: rgba(16,185,129,0.3);
+    color: var(--success);
+    font-size: 12px;
+  }
+  .court-btn.any.selected {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+  }
+
+  /* Time slot selector */
+  .time-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 14px 16px;
+  }
+  .time-btn {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    color: var(--text2);
+    padding: 10px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    font-family: inherit;
+    position: relative;
+  }
+  .time-btn .price-badge {
+    font-size: 10px;
+    color: var(--success);
+    display: block;
+    margin-top: 2px;
+  }
+  .time-btn.ten .price-badge { color: var(--success); }
+  .time-btn.forty .price-badge { color: var(--warning); }
+  .time-btn.selected {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(59,130,246,0.15);
+  }
+  .time-btn.selected .price-badge { color: var(--accent2); }
+
+  /* Mode toggle */
+  .mode-toggle {
+    display: flex;
+    gap: 8px;
+    padding: 14px 16px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .mode-btn.selected {
+    border-color: var(--accent);
+    background: rgba(59,130,246,0.1);
+    color: var(--accent2);
+  }
+
+  /* People selector */
+  .people-grid {
+    display: flex;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  .people-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .people-btn.selected {
+    border-color: var(--accent);
+    background: rgba(59,130,246,0.15);
+    color: var(--text);
+  }
+
+  /* Action buttons */
+  .btn-primary {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 12px 16px;
+    padding: 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: 14px;
+    color: white;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary.armed {
+    background: linear-gradient(135deg, #059669, #10b981);
+    box-shadow: 0 4px 20px rgba(16,185,129,0.4);
+  }
+  .btn-primary.disarmed {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+  }
+  .btn-secondary {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 4px 16px 12px;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text2);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .btn-secondary:active { background: var(--surface2); }
+
+  /* Log */
+  .log-area {
+    margin: 16px;
+    background: #050810;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    max-height: 200px;
+    overflow-y: auto;
+    color: #64748b;
+  }
+  .log-area .log-success { color: var(--success); }
+  .log-area .log-error { color: var(--danger); }
+  .log-area .log-info { color: var(--accent2); }
+  .log-area .log-warn { color: var(--warning); }
+
+  /* Status pill */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .status-pill.waiting {
+    background: rgba(59,130,246,0.15);
+    color: var(--accent2);
+  }
+  .status-pill.armed {
+    background: rgba(16,185,129,0.15);
+    color: var(--success);
+  }
+  .status-pill.firing {
+    background: rgba(245,158,11,0.15);
+    color: var(--warning);
+  }
+
+  /* Notice box */
+  .notice {
+    margin: 0 16px 4px;
+    padding: 12px 14px;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 10px;
+    font-size: 12px;
+    color: #fbbf24;
+    line-height: 1.6;
+  }
+  .notice strong { display: block; margin-bottom: 4px; }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 16px;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 8px 16px 0;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 1s linear;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏸 羽毛球<span>抢场神器</span></h1>
+  <p>中国地质大学（北京）· 自动定时预约</p>
+</div>
+
+<!-- Countdown -->
+<div class="countdown-box" id="countdownBox">
+  <div class="countdown-label" id="countdownLabel">距离开放还有</div>
+  <div class="countdown-time" id="countdownTime">--:--:--</div>
+  <div class="countdown-date" id="countdownDate">加载中...</div>
+  <div class="progress-bar" style="margin: 10px 0 0;">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- Target info -->
+<div class="target-bar" id="targetBar">
+  <div class="dot"></div>
+  <span id="targetDesc">请配置预约信息</span>
+</div>
+
+<!-- Mode -->
+<div class="section">
+  <div class="section-title"><span class="icon">⚡</span>选择模式</div>
+  <div class="mode-toggle">
+    <button class="mode-btn selected" id="modeAuto" onclick="setMode('auto')">
+      🤖 自动选场<br><small style="font-weight:400;color:inherit;opacity:0.7">系统选最优</small>
+    </button>
+    <button class="mode-btn" id="modeManual" onclick="setMode('manual')">
+      ✋ 手动指定<br><small style="font-weight:400;color:inherit;opacity:0.7">我来选场地</small>
+    </button>
+  </div>
+</div>
+
+<!-- Date & Time config -->
+<div class="section">
+  <div class="section-title"><span class="icon">📅</span>预约配置</div>
+  <div class="form-row">
+    <div>
+      <div class="form-label">预约日期</div>
+      <div class="form-hint">自动设为今天+3天</div>
+    </div>
+    <div style="text-align:right">
+      <div id="targetDateDisplay" style="font-size:16px;font-weight:700;color:var(--accent2)"></div>
+      <div id="targetWeekday" style="font-size:11px;color:var(--text2);margin-top:2px"></div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div>
+      <div class="form-label">开放时间</div>
+      <div class="form-hint">到点自动发送请求</div>
+    </div>
+    <input type="time" id="openTime" value="07:30:00" style="width:110px">
+  </div>
+</div>
+
+<!-- Court selector -->
+<div class="section" id="courtSection">
+  <div class="section-title"><span class="icon">🏟️</span>选择场地</div>
+  <div class="court-grid">
+    <button class="court-btn any selected" id="court_any" onclick="selectCourt('any')">🎲 随机最优</button>
+    <button class="court-btn" id="court_1" onclick="selectCourt(1)">1号</button>
+    <button class="court-btn" id="court_2" onclick="selectCourt(2)">2号</button>
+    <button class="court-btn" id="court_3" onclick="selectCourt(3)">3号</button>
+    <button class="court-btn" id="court_4" onclick="selectCourt(4)">4号</button>
+    <button class="court-btn" id="court_5" onclick="selectCourt(5)">5号</button>
+    <button class="court-btn" id="court_6" onclick="selectCourt(6)">6号</button>
+    <button class="court-btn" id="court_7" onclick="selectCourt(7)">7号</button>
+    <button class="court-btn" id="court_8" onclick="selectCourt(8)">8号</button>
+    <button class="court-btn" id="court_9" onclick="selectCourt(9)">9号</button>
+    <button class="court-btn" id="court_10" onclick="selectCourt(10)">10号</button>
+  </div>
+</div>
+
+<!-- Time slot selector -->
+<div class="section">
+  <div class="section-title"><span class="icon">🕐</span>选择时间段（可多选）</div>
+  <div class="time-grid" id="timeGrid">
+    <button class="time-btn ten" onclick="toggleTime('14:00','15:00')">
+      14:00 - 15:00<span class="price-badge">¥10</span>
+    </button>
+    <button class="time-btn ten" onclick="toggleTime('15:00','16:00')">
+      15:00 - 16:00<span class="price-badge">¥10</span>
+    </button>
+    <button class="time-btn ten" onclick="toggleTime('16:00','17:00')">
+      16:00 - 17:00<span class="price-badge">¥10</span>
+    </button>
+    <button class="time-btn ten selected" onclick="toggleTime('17:00','18:00')">
+      17:00 - 18:00<span class="price-badge">¥10</span>
+    </button>
+    <button class="time-btn forty" onclick="toggleTime('18:00','19:00')">
+      18:00 - 19:00<span class="price-badge">¥40</span>
+    </button>
+    <button class="time-btn forty" onclick="toggleTime('19:00','20:00')">
+      19:00 - 20:00<span class="price-badge">¥40</span>
+    </button>
+    <button class="time-btn forty" onclick="toggleTime('20:00','21:00')">
+      20:00 - 21:00<span class="price-badge">¥40</span>
+    </button>
+    <button class="time-btn forty" onclick="toggleTime('21:00','22:00')">
+      21:00 - 22:00<span class="price-badge">¥40</span>
+    </button>
+  </div>
+</div>
+
+<!-- People -->
+<div class="section">
+  <div class="section-title"><span class="icon">👥</span>同行人数</div>
+  <div class="people-grid">
+    <button class="people-btn" id="people_3" onclick="selectPeople(3)">3人</button>
+    <button class="people-btn" id="people_4" onclick="selectPeople(4)">4人</button>
+    <button class="people-btn selected" id="people_5" onclick="selectPeople(5)">5人</button>
+  </div>
+</div>
+
+<!-- Token -->
+<div class="section">
+  <div class="section-title"><span class="icon">🔑</span>身份令牌 (Token)</div>
+  <div class="form-row token-row">
+    <div class="form-label">Token</div>
+    <div class="form-hint">从微信打开系统后从Fiddler抓取</div>
+    <textarea id="tokenInput" rows="4" placeholder="粘贴你的token..."></textarea>
+  </div>
+  <div class="form-row">
+    <div>
+      <div class="form-label">预约接口路径</div>
+      <div class="form-hint">需要你抓包确认</div>
+    </div>
+    <input type="text" id="apiEndpoint" 
+      value="/phone/addOrder" 
+      style="width:160px;font-size:11px"
+      placeholder="/phone/addOrder">
+  </div>
+</div>
+
+<div class="notice">
+  <strong>⚠️ 注意事项</strong>
+  1. 仍需手动完成：滑动验证码 + 支付密码<br>
+  2. 预约接口路径需要你抓包确认（见下方说明）<br>
+  3. Token 有效期约几个月，过期需重新抓取
+</div>
+
+<!-- Buttons -->
+<button class="btn-primary armed" id="armBtn" onclick="toggleArm()">
+  🚀 启动定时抢场
+</button>
+<button class="btn-secondary" onclick="fireNow()">
+  ⚡ 立即发送请求（测试用）
+</button>
+
+<!-- Log -->
+<div class="section">
+  <div class="section-title"><span class="icon">📋</span>运行日志</div>
+  <div class="log-area" id="logArea">
+    <span style="color:#475569">等待启动...</span>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="section">
+  <div class="section-title"><span class="icon">📖</span>如何找到预约接口路径</div>
+  <div style="padding:14px 16px;font-size:12px;line-height:1.9;color:var(--text2)">
+    1. 打开Fiddler，清空记录 (Ctrl+X)<br>
+    2. 在微信里选好场地和时间段<br>
+    3. 点「<strong style="color:var(--text)">提交订单</strong>」按钮<br>
+    4. 立刻回到Fiddler，找到新出现的POST请求<br>
+    5. 路径通常类似 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2)">/phone/addOrder</code><br>
+    6. 填入上方「预约接口路径」框中<br><br>
+    <strong style="color:var(--warning)">⚡ 找到接口后告诉我，我可以帮你解密请求参数！</strong>
+  </div>
+</div>
+
+<script>
+// ========================
+// AES 加密（与原系统一致）
+// ========================
+const AES_KEY = CryptoJS.enc.Utf8.parse('0102030405060708');
+const AES_IV  = CryptoJS.enc.Utf8.parse('0102030405060708');
+
+function aesEncrypt(data) {
+  const str = CryptoJS.enc.Utf8.parse(JSON.stringify(data));
+  const enc = CryptoJS.AES.encrypt(str, AES_KEY, {
+    iv: AES_IV,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7
+  });
+  return enc.ciphertext.toString().toUpperCase();
+}
+
+function aesDecrypt(hex) {
+  const base64 = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Hex.parse(hex));
+  const dec = CryptoJS.AES.decrypt(base64, AES_KEY, {
+    iv: AES_IV,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7
+  });
+  return dec.toString(CryptoJS.enc.Utf8);
+}
+
+// ========================
+// State
+// ========================
+let state = {
+  mode: 'auto',
+  selectedCourt: 'any',
+  selectedTimes: ['17:00-18:00'],
+  selectedPeople: 5,
+  armed: false,
+  timer: null,
+  countdownInterval: null
+};
+
+const WEEKDAYS = ['日','一','二','三','四','五','六'];
+
+function getTargetDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + 3);
+  return d;
+}
+
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ========================
+// UI Updates
+// ========================
+function setMode(m) {
+  state.mode = m;
+  document.getElementById('modeAuto').classList.toggle('selected', m === 'auto');
+  document.getElementById('modeManual').classList.toggle('selected', m === 'manual');
+  updateTargetDesc();
+}
+
+function selectCourt(c) {
+  state.selectedCourt = c;
+  document.querySelectorAll('.court-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('court_' + c).classList.add('selected');
+  updateTargetDesc();
+}
+
+function toggleTime(start, end) {
+  const key = `${start}-${end}`;
+  const btn = event.currentTarget;
+  if (state.selectedTimes.includes(key)) {
+    state.selectedTimes = state.selectedTimes.filter(t => t !== key);
+    btn.classList.remove('selected');
+  } else {
+    state.selectedTimes.push(key);
+    btn.classList.add('selected');
+  }
+  updateTargetDesc();
+}
+
+function selectPeople(n) {
+  state.selectedPeople = n;
+  document.querySelectorAll('.people-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('people_' + n).classList.add('selected');
+}
+
+function updateTargetDesc() {
+  const d = getTargetDate();
+  const courtStr = state.selectedCourt === 'any' ? '随机场地' : `${state.selectedCourt}号场`;
+  const timeStr = state.selectedTimes.length > 0 ? state.selectedTimes.join(' / ') : '未选时间';
+  document.getElementById('targetDesc').textContent =
+    `抢 ${formatDate(d)} · ${courtStr} · ${timeStr}`;
+}
+
+function initDateDisplay() {
+  const d = getTargetDate();
+  document.getElementById('targetDateDisplay').textContent = formatDate(d);
+  document.getElementById('targetWeekday').textContent = `周${WEEKDAYS[d.getDay()]}`;
+}
+
+// ========================
+// Countdown
+// ========================
+function startCountdown() {
+  if (state.countdownInterval) clearInterval(state.countdownInterval);
+  state.countdownInterval = setInterval(updateCountdown, 1000);
+  updateCountdown();
+}
+
+function updateCountdown() {
+  const now = new Date();
+  const openTimeParts = document.getElementById('openTime').value.split(':');
+  const target = new Date();
+  target.setHours(parseInt(openTimeParts[0]), parseInt(openTimeParts[1] || 0), parseInt(openTimeParts[2] || 0), 0);
+
+  if (now > target) {
+    // Already past, set for tomorrow
+    target.setDate(target.getDate() + 1);
+  }
+
+  const diff = target - now;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+
+  const timeEl = document.getElementById('countdownTime');
+  const labelEl = document.getElementById('countdownLabel');
+  const box = document.getElementById('countdownBox');
+  const progress = document.getElementById('progressFill');
+
+  const totalSeconds = 24 * 3600;
+  const elapsed = totalSeconds - diff/1000;
+  const pct = Math.max(0, Math.min(100, (elapsed / totalSeconds) * 100));
+  progress.style.width = pct + '%';
+
+  if (diff <= 0) {
+    timeEl.textContent = '🔥 开抢！';
+    timeEl.className = 'countdown-time ready';
+    labelEl.textContent = '现在开放预约';
+    if (state.armed) fireBooking();
+    return;
+  }
+
+  const display = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  timeEl.textContent = display;
+
+  if (diff < 60000) {
+    timeEl.className = 'countdown-time warning';
+    labelEl.textContent = '⚡ 即将开放！';
+    box.className = 'countdown-box firing';
+  } else if (diff < 300000) {
+    timeEl.className = 'countdown-time warning';
+    labelEl.textContent = '距离开放还有';
+    box.className = 'countdown-box active';
+  } else {
+    timeEl.className = 'countdown-time';
+    labelEl.textContent = state.armed ? '⏳ 已启动，等待开放' : '距离开放还有';
+    box.className = state.armed ? 'countdown-box active' : 'countdown-box';
+  }
+
+  const d = getTargetDate();
+  document.getElementById('countdownDate').textContent =
+    `目标: ${formatDate(d)} 周${WEEKDAYS[d.getDay()]}`;
+}
+
+// ========================
+// Arm / Disarm
+// ========================
+function toggleArm() {
+  state.armed = !state.armed;
+  const btn = document.getElementById('armBtn');
+  if (state.armed) {
+    btn.textContent = '🔴 取消定时（已启动）';
+    btn.className = 'btn-primary disarmed';
+    log('info', `已启动！将在开放时间自动发送预约请求`);
+    log('warn', `届时请注意手机，需要完成：滑动验证码 + 支付密码`);
+  } else {
+    btn.textContent = '🚀 启动定时抢场';
+    btn.className = 'btn-primary armed';
+    log('info', '已取消定时');
+  }
+}
+
+// ========================
+// Fire booking
+// ========================
+async function fireNow() {
+  log('warn', '⚡ 立即测试发送...');
+  await fireBooking();
+}
+
+async function fireBooking() {
+  const token = document.getElementById('tokenInput').value.trim();
+  if (!token) { log('error', '请先填入Token！'); return; }
+
+  const endpoint = document.getElementById('apiEndpoint').value.trim();
+  const targetDate = formatDate(getTargetDate());
+
+  // Build request body based on what we know
+  // Fields based on typical booking systems, may need adjustment
+  const bookingData = {
+    appointmentDate: targetDate,
+    orgId: 2,
+    peopleCount: state.selectedPeople,
+    timeSlots: state.selectedTimes,
+    courtNo: state.selectedCourt === 'any' ? null : state.selectedCourt
+  };
+
+  log('info', `📤 发送预约请求: ${targetDate}`);
+  log('info', `场地: ${state.selectedCourt === 'any' ? '随机' : state.selectedCourt + '号'} | 时间: ${state.selectedTimes.join(', ')}`);
+
+  const encryptedItem = aesEncrypt(bookingData);
+  log('info', `AES加密完成，发送中...`);
+
+  try {
+    const res = await fetch(
+      `https://bdtyg.cugb.edu.cn/service/appointment/appointment${endpoint}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'token': token
+        },
+        body: JSON.stringify({ item: encryptedItem })
+      }
+    );
+    const data = await res.json();
+    log('success', `✅ 服务器响应: ${JSON.stringify(data)}`);
+
+    if (data.success) {
+      log('success', '🎉 预约请求发送成功！请去App完成验证码和支付');
+    } else {
+      log('warn', `响应消息: ${data.message || '未知'}`);
+    }
+  } catch (e) {
+    log('error', `❌ 请求失败: ${e.message}`);
+    log('warn', '可能原因: CORS限制（需在微信内打开此页面）');
+    log('info', '加密后的数据: ' + encryptedItem.substring(0, 30) + '...');
+  }
+}
+
+// ========================
+// Log
+// ========================
+function log(type, msg) {
+  const area = document.getElementById('logArea');
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const line = document.createElement('div');
+  line.className = `log-${type}`;
+  line.textContent = `[${time}] ${msg}`;
+  area.appendChild(line);
+  area.scrollTop = area.scrollHeight;
+  if (area.children.length > 50) area.removeChild(area.children[0]);
+}
+
+// ========================
+// Init
+// ========================
+(function init() {
+  initDateDisplay();
+  startCountdown();
+  updateTargetDesc();
+
+  // Pre-fill token if saved
+  const saved = localStorage.getItem('bdtyg_token');
+  if (saved) document.getElementById('tokenInput').value = saved;
+
+  document.getElementById('tokenInput').addEventListener('blur', function() {
+    localStorage.setItem('bdtyg_token', this.value);
+  });
+
+  log('info', '工具初始化完成');
+  log('info', '步骤: 1)填Token → 2)选场地时间 → 3)启动定时');
+  log('warn', '⚠️ 预约接口路径需要你抓包后确认');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏸 羽毛球抢场神器 · 安装页</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+:root{--bg:#07101f;--s1:#0f1d30;--s2:#162540;--acc:#3b82f6;--acc2:#60a5fa;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;--t1:#f1f5f9;--t2:#94a3b8;--bd:#1e2d45}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;padding-bottom:50px}
+.hdr{background:linear-gradient(135deg,#0a1628,#1a3a5c);padding:22px 18px 18px;border-bottom:1px solid var(--bd);position:relative;overflow:hidden}
+.hdr::after{content:'🏸';position:absolute;right:16px;top:12px;font-size:52px;opacity:.12}
+.hdr h1{font-size:21px;font-weight:900}.hdr h1 span{color:var(--acc2)}
+.hdr p{font-size:11px;color:var(--t2);margin-top:4px}
+.card{margin:12px 14px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.card-hdr{padding:11px 14px;font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--bd)}
+.step{padding:14px;border-bottom:1px solid var(--bd);display:flex;gap:12px;align-items:flex-start}
+.step:last-child{border-bottom:none}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-body{flex:1}
+.step-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.step-desc{font-size:11px;color:var(--t2);line-height:1.7}
+.step-desc b{color:var(--t1)}
+.bm-box{margin:10px 0 0;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:12px;font-size:10px;font-family:'Courier New',monospace;color:var(--acc2);word-break:break-all;line-height:1.5;max-height:80px;overflow-y:auto}
+.copy-btn{display:inline-block;margin-top:8px;padding:7px 14px;background:var(--acc);border:none;border-radius:8px;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.copy-btn.ok{background:var(--ok)}
+.notice{margin:0 14px 8px;padding:12px 14px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:11px;color:#fbbf24;line-height:1.8}
+.notice b{display:block;margin-bottom:3px}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🏸 抢场神器<span> · 安装指南</span></h1>
+  <p>中国地质大学（北京）· 书签注入方案（无跨域限制）</p>
+</div>
+
+<div class="notice">
+  <b>⚡ 为什么用书签方案？</b>
+  直接打开 HTML 文件会被浏览器跨域策略拦截。<br>
+  书签方案在系统自己的网页里运行，<b>完全无跨域限制</b>，请求速度最快。
+</div>
+
+<div class="card">
+  <div class="card-hdr">📲 安装步骤（只需做一次）</div>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-title">复制下方书签代码</div>
+      <div class="step-desc">点击「复制代码」按钮，代码已自动复制到剪贴板</div>
+      <div class="bm-box" id="bmCode">加载中...</div>
+      <button class="copy-btn" id="copyBtn" onclick="copyCode()">📋 复制代码</button>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-title">在微信内打开预约系统</div>
+      <div class="step-desc">在企业微信/微信内打开 <b>bdtyg.cugb.edu.cn</b>，正常登录</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <div class="step-title">打开微信内置开发者工具</div>
+      <div class="step-desc">
+        <b>电脑端微信</b>：点右上角 ··· → 开发者工具 → Console<br>
+        粘贴复制的代码并回车运行<br><br>
+        <b>手机端</b>：右上角 ··· → 复制链接，在电脑操作更方便
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <div class="step-title">抢场面板弹出，配置并启动</div>
+      <div class="step-desc">选择日期、场地、时间段后点「启动定时」即可</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr">🚀 或者：直接在控制台粘贴运行</div>
+  <div class="step">
+    <div class="step-num" style="background:var(--ok)">✓</div>
+    <div class="step-body">
+      <div class="step-title">在 bdtyg.cugb.edu.cn 的 Console 里粘贴</div>
+      <div class="step-desc">
+        打开网站 → F12（或微信开发者工具）→ Console → 粘贴代码 → 回车<br>
+        抢场面板会直接显示在页面上
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// 抢场工具核心代码（将被注入到 bdtyg.cugb.edu.cn 里运行）
+// ══════════════════════════════════════════════════════════════
+const BOOKER_CODE = `(function(){
+if(document.getElementById('_bk_panel'))return;
+
+// 场地 ID
+const COURTS={'1':'890407839460499456','2':'897319168721035264','3':'897319216791953408','4':'897319676093407232','5':'897319852216426496','6':'897320033116758016','7':'897320475481612288','8':'897320564409245696','9':'897321839163088896','10':'897321924424900608'};
+const VENUE_ID='889772856316272640';
+const TIMELIST=[{time:"09:00",status:"0"},{time:"10:00",status:"0"},{time:"11:00",status:"1"},{time:"14:00",status:"0"},{time:"15:00",status:"0"},{time:"16:00",status:"0"},{time:"17:00",status:"0"},{time:"18:00",status:"0"},{time:"19:00",status:"0"},{time:"20:00",status:"0"},{time:"21:00",status:"0"},{time:"22:00",status:"1"}];
+const TIME_IDX={'14:00':0,'15:00':1,'16:00':2,'17:00':3,'18:00':4,'19:00':5,'20:00':6,'21:00':7};
+const WD=['日','一','二','三','四','五','六'];
+const p2=n=>String(n).padStart(2,'0');
+const fmt=d=>\`\${d.getFullYear()}-\${p2(d.getMonth()+1)}-\${p2(d.getDate())}\`;
+const td=(n)=>{const d=new Date();d.setDate(d.getDate()+n);return d;};
+
+// AES 加密（通过系统已加载的 CryptoJS）
+function encrypt(obj){
+  const K=CryptoJS.enc.Utf8.parse('0102030405060708'),IV=CryptoJS.enc.Utf8.parse('0102030405060708');
+  const p=CryptoJS.enc.Utf8.parse(JSON.stringify(obj));
+  const e=CryptoJS.AES.encrypt(p,K,{iv:IV,mode:CryptoJS.mode.CBC,padding:CryptoJS.pad.Pkcs7});
+  return e.ciphertext.toString().toUpperCase();
+}
+
+// 状态
+let S={dayOffset:1,court:'any',slots:['16:00','17:00'],people:5,armed:false,tick:null};
+
+// 面板 HTML
+const panel=document.createElement('div');
+panel.id='_bk_panel';
+panel.style.cssText='position:fixed;top:0;right:0;width:320px;height:100vh;background:#07101f;border-left:1px solid #1e2d45;z-index:999999;overflow-y:auto;font-family:Noto Sans SC,sans-serif;font-size:13px;color:#f1f5f9;box-shadow:-4px 0 20px rgba(0,0,0,.5)';
+panel.innerHTML=\`
+<div style="background:linear-gradient(135deg,#0a1628,#1a3a5c);padding:14px;border-bottom:1px solid #1e2d45;display:flex;justify-content:space-between;align-items:center">
+  <div><div style="font-size:16px;font-weight:900">🏸 抢场神器</div><div style="font-size:10px;color:#94a3b8;margin-top:2px">地大北京羽毛球</div></div>
+  <button onclick="document.getElementById('_bk_panel').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer">×</button>
+</div>
+
+<div id="_bk_cd" style="margin:10px;padding:14px;background:#0f1d30;border:1px solid #1e2d45;border-radius:12px;text-align:center">
+  <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px" id="_bk_cdl">距离开放还有</div>
+  <div id="_bk_cdt" style="font-size:38px;font-weight:900;color:#60a5fa;letter-spacing:-2px;font-variant-numeric:tabular-nums">--:--:--</div>
+  <div id="_bk_cds" style="font-size:10px;color:#94a3b8;margin-top:4px">-</div>
+</div>
+
+<div style="margin:8px 10px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">📅 预约日期</div>
+<div style="display:flex;gap:6px;padding:0 10px 8px">
+  \${[1,2,3].map(n=>{const d=td(n);return\`<button onclick="_bkDay(\${n})" id="_bk_d\${n}" style="flex:1;padding:10px 4px;border-radius:9px;border:2px solid \${n===1?'#3b82f6':'#1e2d45'};background:\${n===1?'rgba(59,130,246,.15)':'#162540'};color:\${n===1?'#f1f5f9':'#94a3b8'};font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;line-height:1.4">\${fmt(d)}<br><span style="font-size:9px;opacity:.7">周\${WD[d.getDay()]}</span></button>\`;}).join('')}
+</div>
+
+<div style="margin:0 10px 4px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">⏰ 开放时间</div>
+<div style="padding:0 10px 8px"><input type="time" id="_bk_ot" value="07:30" style="width:100%;background:#162540;border:1px solid #1e2d45;border-radius:8px;color:#f1f5f9;padding:8px 10px;font-family:inherit;font-size:13px;outline:none"></div>
+
+<div style="margin:0 10px 4px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">🏟️ 场地</div>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:0 10px 8px">
+  <button onclick="_bkCourt('any')" id="_bkc_any" style="grid-column:1/-1;padding:8px;border-radius:8px;border:1px solid rgba(16,185,129,.3);background:rgba(16,185,129,.1);color:#10b981;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer">🎲 随机最优</button>
+  \${Object.keys(COURTS).map(k=>\`<button onclick="_bkCourt('\${k}')" id="_bkc_\${k}" style="padding:8px 2px;border-radius:8px;border:1px solid #1e2d45;background:#162540;color:#94a3b8;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer">\${k}号</button>\`).join('')}
+</div>
+
+<div style="margin:0 10px 4px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">🕐 时间段（可多选）</div>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px;padding:0 10px 8px">
+  \${Object.entries(TIME_IDX).map(([t])=>{const h=parseInt(t);const price=h>=18?40:10;const on=S.slots.includes(t);return\`<button onclick="_bkSlot('\${t}',this)" data-t="\${t}" style="padding:8px 4px;border-radius:8px;border:2px solid \${on?'#3b82f6':'#1e2d45'};background:\${on?'rgba(59,130,246,.12)':'#162540'};color:\${on?'#f1f5f9':'#94a3b8'};font-family:inherit;font-size:11px;cursor:pointer;text-align:center">\${t}-\${p2(h+1)}:00<br><span style="font-size:9px;color:\${price===10?'#10b981':'#f59e0b'}">¥\${price}</span></button>\`;}).join('')}
+</div>
+
+<div style="margin:0 10px 4px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">👥 同行人数</div>
+<div style="display:flex;gap:6px;padding:0 10px 8px">
+  \${[3,4,5].map(n=>\`<button onclick="_bkPpl(\${n})" id="_bkp_\${n}" style="flex:1;padding:10px;border-radius:9px;border:2px solid \${n===5?'#3b82f6':'#1e2d45'};background:\${n===5?'rgba(59,130,246,.12)':'#162540'};color:\${n===5?'#f1f5f9':'#94a3b8'};font-family:inherit;font-size:16px;font-weight:700;cursor:pointer">\${n}人</button>\`).join('')}
+</div>
+
+<button id="_bk_go" onclick="_bkToggle()" style="display:block;width:calc(100% - 20px);margin:4px 10px;padding:14px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">🚀 启动定时抢场</button>
+<button onclick="_bkFire()" style="display:block;width:calc(100% - 20px);margin:0 10px 8px;padding:11px;background:transparent;border:1px solid #1e2d45;border-radius:12px;color:#94a3b8;font-family:inherit;font-size:12px;cursor:pointer">⚡ 立即测试发送</button>
+
+<div style="margin:0 10px 4px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">📋 日志</div>
+<div id="_bk_log" style="margin:0 10px 10px;background:#040810;border:1px solid #1e2d45;border-radius:10px;padding:10px;font-family:Courier New,monospace;font-size:10px;line-height:1.8;max-height:140px;overflow-y:auto;color:#475569"></div>
+\`;
+document.body.appendChild(panel);
+
+// ── 内联函数 ──
+window._bkDay=function(n){
+  S.dayOffset=n;
+  [1,2,3].forEach(i=>{
+    const b=document.getElementById('_bk_d'+i);
+    const on=i===n;
+    b.style.borderColor=on?'#3b82f6':'#1e2d45';
+    b.style.background=on?'rgba(59,130,246,.15)':'#162540';
+    b.style.color=on?'#f1f5f9':'#94a3b8';
+  });
+};
+
+window._bkCourt=function(c){
+  S.court=c;
+  document.querySelectorAll('[id^=_bkc_]').forEach(b=>{
+    const isAny=b.id==='_bkc_any';
+    const on=b.id==='_bkc_'+c;
+    b.style.borderColor=on?(isAny?'#10b981':'#3b82f6'):'#1e2d45';
+    b.style.background=on?(isAny?'rgba(16,185,129,.15)':'rgba(59,130,246,.15)'):'#162540';
+    b.style.color=on?(isAny?'#10b981':'#f1f5f9'):'#94a3b8';
+  });
+};
+
+window._bkSlot=function(t,btn){
+  const idx=S.slots.indexOf(t);
+  if(idx>=0){S.slots.splice(idx,1);btn.style.borderColor='#1e2d45';btn.style.background='#162540';btn.style.color='#94a3b8';}
+  else{S.slots.push(t);btn.style.borderColor='#3b82f6';btn.style.background='rgba(59,130,246,.12)';btn.style.color='#f1f5f9';}
+};
+
+window._bkPpl=function(n){
+  S.people=n;
+  [3,4,5].forEach(i=>{
+    const b=document.getElementById('_bkp_'+i);
+    const on=i===n;
+    b.style.borderColor=on?'#3b82f6':'#1e2d45';
+    b.style.background=on?'rgba(59,130,246,.12)':'#162540';
+    b.style.color=on?'#f1f5f9':'#94a3b8';
+  });
+};
+
+window._bkToggle=function(){
+  S.armed=!S.armed;
+  const btn=document.getElementById('_bk_go');
+  if(S.armed){btn.textContent='🔴 取消（已启动）';btn.style.background='linear-gradient(135deg,#dc2626,#ef4444)';_bkLog('ok','✅ 已启动！到点自动发送');}
+  else{btn.textContent='🚀 启动定时抢场';btn.style.background='linear-gradient(135deg,#1d4ed8,#3b82f6)';_bkLog('inf','已取消');}
+};
+
+window._bkLog=function(type,msg){
+  const el=document.getElementById('_bk_log');
+  const now=new Date();
+  const t=p2(now.getHours())+':'+p2(now.getMinutes())+':'+p2(now.getSeconds());
+  const colors={ok:'#10b981',er:'#ef4444',inf:'#60a5fa',wn:'#f59e0b'};
+  const d=document.createElement('div');
+  d.style.color=colors[type]||'#94a3b8';
+  d.textContent='['+t+'] '+msg;
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+  if(el.children.length>50)el.removeChild(el.children[0]);
+};
+
+window._bkFire=async function(){
+  _bkLog('wn','⚡ 测试发送...');
+  await _bkSend();
+};
+
+window._bkSend=async function(){
+  const token=uni&&uni.getStorageSync?uni.getStorageSync('token'):localStorage.getItem('token')||'';
+  if(!token){_bkLog('er','❌ 未找到 token，请先登录系统');return;}
+  if(!S.slots.length){_bkLog('er','❌ 请选择时间段');return;}
+
+  const d=td(S.dayOffset);
+  const date=fmt(d);
+
+  // 确定场地
+  const courtKeys=S.court==='any'?[String(Math.floor(Math.random()*10)+1)]:[S.court];
+  const courtIdx=parseInt(courtKeys[0])-1; // 0-based
+
+  // nodeList（全部10个场地，与原始请求一致）
+  const nodeList=Object.entries(COURTS).map(([k,v])=>({sitename:k+'号场',nodeid:v}));
+
+  // coordinatesList: "courtIdx-timeSlotIdx"
+  // timeSlotIdx 是当前选中 slots 里的序号（0,1,2...），而非全局
+  const sortedSlots=[...S.slots].sort();
+  const coordinatesList=sortedSlots.map((slot,i)=>\`\${courtIdx}-\${TIME_IDX[slot]}\`);
+
+  const body={
+    nodeList,payprice:'5000',isLastDay:false,appointmentDate:date,
+    timeList:TIMELIST,coordinatesList,booktype:2,nodeid:VENUE_ID,
+    childrennum:String(S.people),followList:[],txamt:'5000',payway:'77'
+  };
+
+  _bkLog('inf',\`📤 \${date} · \${courtKeys[0]}号场 · \${sortedSlots.join(' ')} · \${S.people}人\`);
+  _bkLog('inf','坐标: '+coordinatesList.join(', '));
+
+  const item=encrypt(body);
+  _bkLog('inf','加密完成，发送中...');
+
+  try{
+    const res=await fetch('/service/appointment/appointment/phone/createBookingBytime',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','token':token},
+      body:JSON.stringify({item})
+    });
+    const data=await res.json();
+    _bkLog('inf','响应: '+JSON.stringify(data));
+    if(data.success===true||data.code==200){
+      _bkLog('ok','🎉 成功！请立刻完成验证码和支付！');
+    }else{
+      _bkLog('wn','消息: '+(data.message||'未知'));
+    }
+  }catch(e){
+    _bkLog('er','❌ '+e.message);
+  }
+};
+
+// 倒计时
+function startTick(){
+  setInterval(()=>{
+    const now=new Date();
+    const ot=document.getElementById('_bk_ot').value.split(':');
+    const target=new Date();
+    target.setHours(+ot[0],+ot[1],0,0);
+    if(now>=target)target.setDate(target.getDate()+1);
+    const diff=target-now;
+    const h=Math.floor(diff/3600000),m=Math.floor(diff%3600000/60000),s=Math.floor(diff%60000/1000);
+    const el=document.getElementById('_bk_cdt');
+    const cd=document.getElementById('_bk_cd');
+    const ds=document.getElementById('_bk_cds');
+    const d=td(S.dayOffset);
+    ds.textContent='目标: '+fmt(d)+' 周'+WD[d.getDay()];
+    if(diff<=500){
+      el.textContent='🔥 开抢！';el.style.color='#10b981';
+      if(S.armed){S.armed=false;_bkSend();}
+      return;
+    }
+    el.textContent=p2(h)+':'+p2(m)+':'+p2(s);
+    el.style.color=diff<60000?'#f59e0b':'#60a5fa';
+    cd.style.borderColor=S.armed?'#3b82f6':'#1e2d45';
+    cd.style.boxShadow=S.armed?'0 0 20px rgba(59,130,246,.3)':'none';
+  },1000);
+}
+startTick();
+_bkLog('ok','✅ 面板已加载！Token 自动从系统读取');
+_bkLog('inf','选好场地时间 → 启动定时 → 等待 7:30');
+})();`;
+
+// 显示代码
+document.getElementById('bmCode').textContent = BOOKER_CODE.substring(0, 200) + '... (完整代码点击复制)';
+
+function copyCode() {
+  navigator.clipboard.writeText(BOOKER_CODE).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ 已复制！';
+    btn.className = 'copy-btn ok';
+    setTimeout(() => { btn.textContent = '📋 复制代码'; btn.className = 'copy-btn'; }, 3000);
+  }).catch(() => {
+    // 降级方案
+    const ta = document.createElement('textarea');
+    ta.value = BOOKER_CODE;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ 已复制！';
+    btn.className = 'copy-btn ok';
+  });
+}
+</script>
+</body>
+</html>

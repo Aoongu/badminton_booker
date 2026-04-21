@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏸 羽毛球抢场神器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+:root {
+  --bg:#07101f;--s1:#0f1d30;--s2:#162540;--acc:#3b82f6;--acc2:#60a5fa;
+  --ok:#10b981;--warn:#f59e0b;--err:#ef4444;--t1:#f1f5f9;--t2:#94a3b8;
+  --bd:#1e2d45;--glow:0 0 20px rgba(59,130,246,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;padding-bottom:50px}
+
+.hdr{background:linear-gradient(135deg,#0a1628 0%,#1a3a5c 100%);padding:22px 18px 18px;border-bottom:1px solid var(--bd);position:relative;overflow:hidden}
+.hdr::after{content:'🏸';position:absolute;right:16px;top:16px;font-size:48px;opacity:.15;line-height:1}
+.hdr h1{font-size:20px;font-weight:900;letter-spacing:-.5px}
+.hdr h1 span{color:var(--acc2)}
+.hdr p{font-size:11px;color:var(--t2);margin-top:3px}
+
+/* ── countdown ── */
+.cd-box{background:var(--s1);border:1px solid var(--bd);border-radius:16px;margin:14px;padding:18px;text-align:center;transition:all .3s}
+.cd-box.live{border-color:var(--acc);box-shadow:var(--glow)}
+.cd-box.soon{border-color:var(--warn);box-shadow:0 0 20px rgba(245,158,11,.35);animation:pulse .6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.cd-lbl{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.cd-num{font-size:44px;font-weight:900;letter-spacing:-3px;color:var(--acc2);font-variant-numeric:tabular-nums;line-height:1}
+.cd-num.w{color:var(--warn)}.cd-num.g{color:var(--ok)}
+.cd-sub{font-size:11px;color:var(--t2);margin-top:6px}
+.bar{height:3px;background:var(--bd);border-radius:2px;margin:12px 0 0;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:2px;transition:width 1s linear}
+
+/* ── target pill ── */
+.target{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:10px 14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.18);border-radius:10px;font-size:12px;color:var(--t2)}
+.target .dot{width:7px;height:7px;border-radius:50%;background:var(--acc);flex-shrink:0;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.target b{color:var(--t1)}
+
+/* ── card ── */
+.card{margin:10px 14px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.card-hdr{padding:10px 14px;font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:7px}
+.row{padding:13px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.row:last-child{border-bottom:none}
+.row-label{font-size:13px;font-weight:500}
+.row-hint{font-size:10px;color:var(--t2);margin-top:2px}
+.row-val{font-size:15px;font-weight:700;color:var(--acc2)}
+.row-val2{font-size:10px;color:var(--t2);margin-top:2px;text-align:right}
+
+input[type=time],input[type=text],textarea,select{
+  background:var(--s2);border:1px solid var(--bd);border-radius:8px;
+  color:var(--t1);padding:8px 11px;font-family:inherit;font-size:12px;outline:none;transition:border .2s}
+input[type=time]:focus,input[type=text]:focus,textarea:focus{border-color:var(--acc)}
+textarea{resize:none;width:100%;margin-top:8px;font-size:10px;line-height:1.6}
+
+/* ── mode ── */
+.modes{display:flex;gap:8px;padding:12px 14px}
+.mode{flex:1;padding:10px 6px;border-radius:10px;border:2px solid var(--bd);background:var(--s2);color:var(--t2);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.5}
+.mode.on{border-color:var(--acc);background:rgba(59,130,246,.12);color:var(--acc2)}
+
+/* ── courts ── */
+.courts{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;padding:12px 14px}
+.c-btn{background:var(--s2);border:1px solid var(--bd);border-radius:9px;color:var(--t2);padding:9px 2px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+.c-btn.on{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:0 0 10px rgba(59,130,246,.35)}
+.c-any{grid-column:1/-1;background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.25);color:var(--ok);font-size:11px}
+.c-any.on{background:var(--ok);border-color:var(--ok);color:#fff}
+
+/* ── times ── */
+.times{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;padding:12px 14px}
+.t-btn{background:var(--s2);border:2px solid var(--bd);border-radius:9px;color:var(--t2);padding:9px 6px;font-size:11px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+.t-btn .p{font-size:9px;display:block;margin-top:2px}
+.t-btn.ten .p{color:var(--ok)}.t-btn.forty .p{color:var(--warn)}
+.t-btn.on{border-color:var(--acc);background:rgba(59,130,246,.12);color:var(--t1)}
+.t-btn.on .p{color:var(--acc2)}
+
+/* ── people ── */
+.people{display:flex;gap:8px;padding:12px 14px}
+.p-btn{flex:1;padding:12px;border-radius:9px;border:2px solid var(--bd);background:var(--s2);color:var(--t2);font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center}
+.p-btn.on{border-color:var(--acc);background:rgba(59,130,246,.12);color:var(--t1)}
+
+/* ── buttons ── */
+.btn-go{display:block;width:calc(100% - 28px);margin:10px 14px;padding:15px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:13px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:.3px;box-shadow:0 4px 15px rgba(59,130,246,.3)}
+.btn-go:active{transform:scale(.98)}
+.btn-go.disarm{background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 4px 15px rgba(239,68,68,.3)}
+.btn-go.armed{background:linear-gradient(135deg,#047857,#10b981);box-shadow:0 4px 15px rgba(16,185,129,.3)}
+.btn-test{display:block;width:calc(100% - 28px);margin:0 14px 10px;padding:12px;background:transparent;border:1px solid var(--bd);border-radius:13px;color:var(--t2);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;text-align:center}
+.btn-test:active{background:var(--s2)}
+
+/* ── log ── */
+.logbox{margin:10px 14px;background:#040810;border:1px solid var(--bd);border-radius:12px;padding:12px;font-family:'Courier New',monospace;font-size:10px;line-height:1.9;max-height:180px;overflow-y:auto;color:#475569}
+.logbox .ok{color:var(--ok)}.logbox .er{color:var(--err)}.logbox .inf{color:var(--acc2)}.logbox .wn{color:var(--warn)}
+
+/* ── notice ── */
+.notice{margin:0 14px 6px;padding:11px 13px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:9px;font-size:11px;color:#fbbf24;line-height:1.7}
+.notice b{display:block;margin-bottom:3px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>🏸 羽毛球<span>抢场神器</span></h1>
+  <p>中国地质大学（北京）· 智能定时预约 v2.0</p>
+</div>
+
+<!-- Countdown -->
+<div class="cd-box" id="cdBox">
+  <div class="cd-lbl" id="cdLbl">距离开放还有</div>
+  <div class="cd-num" id="cdNum">--:--:--</div>
+  <div class="cd-sub" id="cdSub">计算中...</div>
+  <div class="bar"><div class="bar-fill" id="barFill" style="width:0"></div></div>
+</div>
+
+<!-- Target -->
+<div class="target"><div class="dot"></div><span id="targetTxt">请配置预约信息</span></div>
+
+<!-- Mode -->
+<div class="card">
+  <div class="card-hdr">⚡ 选择模式</div>
+  <div class="modes">
+    <button class="mode on" id="mAuto" onclick="setMode('auto')">🤖 自动选场<br><small style="font-weight:400;opacity:.7">系统随机最优</small></button>
+    <button class="mode" id="mManual" onclick="setMode('manual')">✋ 手动指定<br><small style="font-weight:400;opacity:.7">我来选场地</small></button>
+  </div>
+</div>
+
+<!-- Date/Time -->
+<div class="card">
+  <div class="card-hdr">📅 预约配置</div>
+  <div class="row">
+    <div><div class="row-label">预约日期</div><div class="row-hint">自动 = 今天+3天</div></div>
+    <div><div class="row-val" id="dateVal"></div><div class="row-val2" id="dateWeek"></div></div>
+  </div>
+  <div class="row">
+    <div><div class="row-label">开放时间</div><div class="row-hint">到点自动发出请求</div></div>
+    <input type="time" id="openTime" value="07:30" style="width:100px">
+  </div>
+</div>
+
+<!-- Courts -->
+<div class="card" id="courtCard">
+  <div class="card-hdr">🏟️ 选择场地</div>
+  <div class="courts">
+    <button class="c-btn c-any on" id="c_any" onclick="pickCourt('any')">🎲 随机最优</button>
+    <button class="c-btn" id="c_1" onclick="pickCourt('1')">1号</button>
+    <button class="c-btn" id="c_2" onclick="pickCourt('2')">2号</button>
+    <button class="c-btn" id="c_3" onclick="pickCourt('3')">3号</button>
+    <button class="c-btn" id="c_4" onclick="pickCourt('4')">4号</button>
+    <button class="c-btn" id="c_5" onclick="pickCourt('5')">5号</button>
+    <button class="c-btn" id="c_6" onclick="pickCourt('6')">6号</button>
+    <button class="c-btn" id="c_7" onclick="pickCourt('7')">7号</button>
+    <button class="c-btn" id="c_8" onclick="pickCourt('8')">8号</button>
+    <button class="c-btn" id="c_9" onclick="pickCourt('9')">9号</button>
+    <button class="c-btn" id="c_10" onclick="pickCourt('10')">10号</button>
+  </div>
+</div>
+
+<!-- Time slots -->
+<div class="card">
+  <div class="card-hdr">🕐 时间段（可多选，连续更好）</div>
+  <div class="times" id="timeGrid">
+    <button class="t-btn ten" data-start="14:00" data-idx="0" onclick="toggleSlot(this)">14:00 - 15:00<span class="p">¥10</span></button>
+    <button class="t-btn ten" data-start="15:00" data-idx="1" onclick="toggleSlot(this)">15:00 - 16:00<span class="p">¥10</span></button>
+    <button class="t-btn ten on" data-start="16:00" data-idx="2" onclick="toggleSlot(this)">16:00 - 17:00<span class="p">¥10</span></button>
+    <button class="t-btn ten on" data-start="17:00" data-idx="3" onclick="toggleSlot(this)">17:00 - 18:00<span class="p">¥10</span></button>
+    <button class="t-btn forty" data-start="18:00" data-idx="4" onclick="toggleSlot(this)">18:00 - 19:00<span class="p">¥40</span></button>
+    <button class="t-btn forty" data-start="19:00" data-idx="5" onclick="toggleSlot(this)">19:00 - 20:00<span class="p">¥40</span></button>
+    <button class="t-btn forty" data-start="20:00" data-idx="6" onclick="toggleSlot(this)">20:00 - 21:00<span class="p">¥40</span></button>
+    <button class="t-btn forty" data-start="21:00" data-idx="7" onclick="toggleSlot(this)">21:00 - 22:00<span class="p">¥40</span></button>
+  </div>
+</div>
+
+<!-- People -->
+<div class="card">
+  <div class="card-hdr">👥 同行人数</div>
+  <div class="people">
+    <button class="p-btn" id="p3" onclick="pickPeople(3)">3人</button>
+    <button class="p-btn" id="p4" onclick="pickPeople(4)">4人</button>
+    <button class="p-btn on" id="p5" onclick="pickPeople(5)">5人</button>
+  </div>
+</div>
+
+<!-- Token -->
+<div class="card">
+  <div class="card-hdr">🔑 身份令牌</div>
+  <div class="row" style="flex-direction:column;align-items:flex-start">
+    <div class="row-label">Token <span style="color:var(--t2);font-size:10px;font-weight:400">（自动保存）</span></div>
+    <textarea id="token" rows="4" placeholder="粘贴你的 token..."></textarea>
+  </div>
+</div>
+
+<div class="notice">
+  <b>⚠️ 使用说明</b>
+  1. 填好 Token → 选场地和时间段 → 点「启动定时」<br>
+  2. 7:30 到点后工具自动发出请求<br>
+  3. 仍需手动：<b>滑动验证码</b> + <b>输入支付密码</b><br>
+  4. Token 约几个月有效，过期后重新抓取即可
+</div>
+
+<button class="btn-go" id="armBtn" onclick="toggleArm()">🚀 启动定时抢场</button>
+<button class="btn-test" onclick="fireNow()">⚡ 立即测试发送</button>
+
+<!-- Log -->
+<div class="card">
+  <div class="card-hdr">📋 运行日志</div>
+  <div class="logbox" id="log"><span style="color:#334155">等待操作...</span></div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// 场地 ID 映射（从抓包解密得到的真实数据）
+// ══════════════════════════════════════
+const COURTS = {
+  '1':  '890407839460499456',
+  '2':  '897319168721035264',
+  '3':  '897319216791953408',
+  '4':  '897319676093407232',
+  '5':  '897319852216426496',
+  '6':  '897320033116758016',
+  '7':  '897320475481612288',
+  '8':  '897320564409245696',
+  '9':  '897321839163088896',
+  '10': '897321924424900608'
+};
+const ALL_COURT_IDS = Object.keys(COURTS);
+
+// 场馆节点 ID（从抓包获得）
+const VENUE_NODE_ID = '889772856316272640';
+
+// 时间段在 timeList 里的真实索引（09:00=0, 10:00=1, 11:00=2, 14:00=3 ...）
+// coordinatesList 格式: "courtIdx-timeGridIdx"
+// timeGridIdx 是在渲染格子时的序号（从0开始，跳过不可预约的）
+// 根据抓包数据，14:00对应idx=0，15:00→1，依此类推
+const TIME_GRID_IDX = {
+  '14:00': 0, '15:00': 1, '16:00': 2, '17:00': 3,
+  '18:00': 4, '19:00': 5, '20:00': 6, '21:00': 7
+};
+
+const WEEKDAYS = ['日','一','二','三','四','五','六'];
+
+// ══════════════════════════════════════
+// AES 加密（与系统完全一致）
+// ══════════════════════════════════════
+const KEY = CryptoJS.enc.Utf8.parse('0102030405060708');
+const IV  = CryptoJS.enc.Utf8.parse('0102030405060708');
+
+function encrypt(obj) {
+  const plain = CryptoJS.enc.Utf8.parse(JSON.stringify(obj));
+  const enc = CryptoJS.AES.encrypt(plain, KEY, {iv:IV, mode:CryptoJS.mode.CBC, padding:CryptoJS.pad.Pkcs7});
+  return enc.ciphertext.toString().toUpperCase();
+}
+
+// ══════════════════════════════════════
+// 状态
+// ══════════════════════════════════════
+let S = {
+  mode: 'auto',
+  court: 'any',
+  slots: ['16:00','17:00'],  // 默认选中的时间段
+  people: 5,
+  armed: false,
+  tick: null
+};
+
+// ══════════════════════════════════════
+// UI 交互
+// ══════════════════════════════════════
+function setMode(m) {
+  S.mode = m;
+  document.getElementById('mAuto').classList.toggle('on', m==='auto');
+  document.getElementById('mManual').classList.toggle('on', m==='manual');
+  updateTarget();
+}
+
+function pickCourt(c) {
+  S.court = c;
+  document.querySelectorAll('.c-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('c_' + c).classList.add('on');
+  updateTarget();
+}
+
+function toggleSlot(btn) {
+  const t = btn.dataset.start;
+  const idx = S.slots.indexOf(t);
+  if (idx >= 0) { S.slots.splice(idx, 1); btn.classList.remove('on'); }
+  else           { S.slots.push(t);         btn.classList.add('on'); }
+  updateTarget();
+}
+
+function pickPeople(n) {
+  S.people = n;
+  [3,4,5].forEach(i => document.getElementById('p'+i).classList.toggle('on', i===n));
+}
+
+function updateTarget() {
+  const d = targetDate();
+  const ct = S.court === 'any' ? '随机场地' : S.court + '号场';
+  const sl = S.slots.length ? S.slots.join(' / ') : '未选';
+  document.getElementById('targetTxt').innerHTML =
+    `抢 <b>${fmt(d)}</b> · <b>${ct}</b> · <b>${sl}</b>`;
+}
+
+function targetDate() {
+  const d = new Date(); d.setDate(d.getDate() + 3); return d;
+}
+function fmt(d) {
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+}
+function p2(n){ return String(n).padStart(2,'0'); }
+
+function initDate() {
+  const d = targetDate();
+  document.getElementById('dateVal').textContent = fmt(d);
+  document.getElementById('dateWeek').textContent = `周${WEEKDAYS[d.getDay()]}`;
+}
+
+// ══════════════════════════════════════
+// 倒计时
+// ══════════════════════════════════════
+function startTick() {
+  if (S.tick) clearInterval(S.tick);
+  S.tick = setInterval(tick, 1000); tick();
+}
+
+function tick() {
+  const now = new Date();
+  const parts = document.getElementById('openTime').value.split(':');
+  const target = new Date();
+  target.setHours(+parts[0], +parts[1], 0, 0);
+  if (now >= target) target.setDate(target.getDate() + 1);
+
+  const diff = target - now;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const sec = Math.floor((diff % 60000) / 1000);
+
+  const numEl = document.getElementById('cdNum');
+  const lblEl = document.getElementById('cdLbl');
+  const box   = document.getElementById('cdBox');
+  const fill  = document.getElementById('barFill');
+
+  fill.style.width = Math.max(0, 100 - diff / 864000 * 100) + '%';
+
+  const d = targetDate();
+  document.getElementById('cdSub').textContent = `目标: ${fmt(d)} 周${WEEKDAYS[d.getDay()]}`;
+
+  if (diff <= 500) {
+    numEl.textContent = '🔥 开抢！'; numEl.className = 'cd-num g';
+    if (S.armed) { S.armed = false; fireBooking(); }
+    return;
+  }
+
+  numEl.textContent = `${p2(h)}:${p2(m)}:${p2(sec)}`;
+  if (diff < 60000)  { numEl.className='cd-num w'; lblEl.textContent='⚡ 即将开放！'; box.className='cd-box soon'; }
+  else if (diff < 300000) { numEl.className='cd-num w'; lblEl.textContent='距离开放还有'; box.className='cd-box live'; }
+  else { numEl.className='cd-num'; lblEl.textContent=S.armed?'⏳ 已启动，等待开放':'距离开放还有'; box.className=S.armed?'cd-box live':'cd-box'; }
+}
+
+// ══════════════════════════════════════
+// 启动 / 取消
+// ══════════════════════════════════════
+function toggleArm() {
+  S.armed = !S.armed;
+  const btn = document.getElementById('armBtn');
+  if (S.armed) {
+    btn.textContent = '🔴 取消定时（已启动）'; btn.className = 'btn-go disarm';
+    log('ok', '✅ 定时已启动！到点自动发送请求');
+    log('wn', '届时请注意手机：需要完成 滑动验证码 + 支付密码');
+  } else {
+    btn.textContent = '🚀 启动定时抢场'; btn.className = 'btn-go';
+    log('inf', '已取消定时');
+  }
+}
+
+// ══════════════════════════════════════
+// 构建并发送预约请求
+// ══════════════════════════════════════
+async function fireNow() {
+  log('wn', '⚡ 立即测试发送...');
+  await fireBooking();
+}
+
+async function fireBooking() {
+  const token = document.getElementById('token').value.trim();
+  if (!token) { log('er', '❌ 请先填入 Token！'); return; }
+  if (!S.slots.length) { log('er', '❌ 请至少选一个时间段！'); return; }
+
+  const date = fmt(targetDate());
+
+  // ── 确定场地列表 ──
+  let courtKeys;
+  if (S.mode === 'auto' || S.court === 'any') {
+    courtKeys = ALL_COURT_IDS; // 随机：传全部，让服务器选或轮流尝试
+  } else {
+    courtKeys = [S.court];
+  }
+
+  // ── 构建 nodeList ──
+  const nodeList = ALL_COURT_IDS.map(k => ({
+    sitename: k + '号场',
+    nodeid: COURTS[k]
+  }));
+
+  // ── 构建 coordinatesList ──
+  // 格式 "courtIdx-timeSlotIdx"（0-based）
+  // courtIdx = 所选场地在 nodeList 中的位置
+  // timeSlotIdx = 时间段在格子里的 0-based 序号
+  const coordinatesList = [];
+  const sortedSlots = [...S.slots].sort();
+  for (const courtKey of courtKeys) {
+    const courtIdx = ALL_COURT_IDS.indexOf(courtKey);
+    for (const slot of sortedSlots) {
+      const timeIdx = TIME_GRID_IDX[slot];
+      if (timeIdx !== undefined) {
+        coordinatesList.push(`${courtIdx}-${timeIdx}`);
+      }
+    }
+    if (S.mode !== 'auto') break; // 手动模式只选一个场地
+  }
+
+  // ── 构建请求体 ──
+  const body = {
+    nodeList,
+    payprice: "5000",
+    isLastDay: false,
+    appointmentDate: date,
+    timeList: [
+      {time:"09:00",status:"0"},{time:"10:00",status:"0"},{time:"11:00",status:"1"},
+      {time:"14:00",status:"0"},{time:"15:00",status:"0"},{time:"16:00",status:"0"},
+      {time:"17:00",status:"0"},{time:"18:00",status:"0"},{time:"19:00",status:"0"},
+      {time:"20:00",status:"0"},{time:"21:00",status:"0"},{time:"22:00",status:"1"}
+    ],
+    coordinatesList,
+    booktype: 2,
+    nodeid: VENUE_NODE_ID,
+    childrennum: String(S.people),
+    followList: [],
+    txamt: "5000",
+    payway: "77"
+  };
+
+  log('inf', `📤 ${date} · ${S.court==='any'?'随机':S.court+'号'} · ${sortedSlots.join(' ')} · ${S.people}人`);
+  log('inf', `坐标: ${coordinatesList.join(', ')}`);
+
+  const encrypted = encrypt(body);
+  log('inf', `AES 加密完成 (${encrypted.length} chars)`);
+
+  const t0 = Date.now();
+  try {
+    const res = await fetch(
+      'https://bdtyg.cugb.edu.cn/service/appointment/appointment/phone/createBookingBytime',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'token': token },
+        body: JSON.stringify({ item: encrypted })
+      }
+    );
+    const ms = Date.now() - t0;
+    const data = await res.json();
+    log('inf', `响应 ${res.status} (${ms}ms): ${JSON.stringify(data)}`);
+
+    if (data.success === true || data.code === '200' || data.code === 200) {
+      log('ok', '🎉 预约成功！请立刻打开 App 完成验证码和支付！');
+      document.getElementById('cdBox').className = 'cd-box live';
+    } else if (data.message) {
+      log('wn', `服务器消息: ${data.message}`);
+    }
+  } catch (e) {
+    log('er', `❌ 请求失败: ${e.message}`);
+    if (e.message.includes('fetch') || e.message.includes('CORS')) {
+      log('wn', '⚠️ CORS 限制：请在微信内打开本页面后使用');
+      log('inf', '或者：打开 bdtyg.cugb.edu.cn，在控制台粘贴下方代码');
+      log('inf', '👇 已在控制台生成可直接粘贴的代码');
+      generateConsoleCode(token, encrypted);
+    }
+  }
+}
+
+// ══════════════════════════════════════
+// 生成可在网站控制台粘贴的代码（备用方案）
+// ══════════════════════════════════════
+function generateConsoleCode(token, encrypted) {
+  const code = `fetch('/service/appointment/appointment/phone/createBookingBytime',{method:'POST',headers:{'Content-Type':'application/json','token':'${token.substring(0,20)}...'},body:'{"item":"${encrypted.substring(0,30)}..."}'}).then(r=>r.json()).then(console.log)`;
+  console.log('=== 粘贴到 bdtyg.cugb.edu.cn 控制台 ===');
+  console.log(code);
+}
+
+// ══════════════════════════════════════
+// 日志
+// ══════════════════════════════════════
+function log(type, msg) {
+  const el = document.getElementById('log');
+  const now = new Date();
+  const t = `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
+  const div = document.createElement('div');
+  div.className = type;
+  div.textContent = `[${t}] ${msg}`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  if (el.children.length > 60) el.removeChild(el.children[0]);
+}
+
+// ══════════════════════════════════════
+// 初始化
+// ══════════════════════════════════════
+(function init() {
+  initDate(); startTick(); updateTarget();
+
+  const saved = localStorage.getItem('cugb_token');
+  if (saved) document.getElementById('token').value = saved;
+  document.getElementById('token').addEventListener('blur', function() {
+    if (this.value.trim()) localStorage.setItem('cugb_token', this.value.trim());
+  });
+
+  log('inf', '工具 v2.0 启动 — 接口和参数已从抓包数据解析完毕');
+  log('inf', '步骤: 填 Token → 选场地时间 → 启动定时');
+  log('wn', 'CORS 说明: 若报错请在微信内打开此页，或见控制台代码');
+})();
+</script>
+</body>
+</html>

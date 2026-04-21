@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>🏸 抢场神器 · Fiddler注入方案</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+:root{--bg:#07101f;--s1:#0f1d30;--s2:#162540;--acc:#3b82f6;--acc2:#60a5fa;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;--t1:#f1f5f9;--t2:#94a3b8;--bd:#1e2d45}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;padding-bottom:60px}
+.hdr{background:linear-gradient(135deg,#0a1628,#1a3a5c);padding:20px 18px 16px;border-bottom:1px solid var(--bd)}
+.hdr h1{font-size:20px;font-weight:900}.hdr h1 span{color:var(--acc2)}
+.hdr p{font-size:11px;color:var(--t2);margin-top:3px}
+.card{margin:12px 14px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.card-hdr{padding:11px 14px;font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:7px}
+.step{padding:14px;border-bottom:1px solid var(--bd);display:flex;gap:12px}
+.step:last-child{border-bottom:none}
+.sn{width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.sb{flex:1}
+.st{font-size:13px;font-weight:600;margin-bottom:5px}
+.sd{font-size:12px;color:var(--t2);line-height:1.8}
+.sd b{color:var(--t1)} .sd code{background:var(--s2);padding:1px 6px;border-radius:4px;color:var(--acc2);font-family:'Courier New',monospace;font-size:11px}
+.code-box{margin:10px 0 0;background:#020810;border:1px solid var(--bd);border-radius:10px;padding:13px;font-family:'Courier New',monospace;font-size:10.5px;color:#a5f3fc;line-height:1.7;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto;position:relative}
+.copy-btn{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:7px 14px;background:var(--acc);border:none;border-radius:8px;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s}
+.copy-btn.ok{background:var(--ok)}
+.notice{margin:0 14px 6px;padding:12px 14px;border-radius:10px;font-size:11px;line-height:1.8}
+.notice.yellow{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);color:#fbbf24}
+.notice.blue{background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);color:#93c5fd}
+.notice b{display:block;margin-bottom:3px}
+img-placeholder{display:block;height:2px}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🏸 抢场神器<span> · Fiddler 注入方案</span></h1>
+  <p>利用你已有的 Fiddler，把抢场面板注入到系统页面 · 完全无跨域</p>
+</div>
+
+<div class="notice blue">
+  <b>💡 原理</b>
+  Fiddler 代理微信的网络请求 → 拦截系统首页的 HTML 响应 → 在里面追加我们的脚本 → 脚本在 bdtyg.cugb.edu.cn 自己的域名下运行 → 发请求不受任何跨域限制
+</div>
+
+<div class="card">
+  <div class="card-hdr">⚙️ 第一步：在 Fiddler 里修改脚本规则</div>
+  <div class="step">
+    <div class="sn">1</div>
+    <div class="sb">
+      <div class="st">打开 Fiddler，点菜单栏 <b>Rules → Customize Rules…</b></div>
+      <div class="sd">会打开一个 FiddlerScript 编辑器（.js 文件）</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="sn">2</div>
+    <div class="sb">
+      <div class="st">找到 <code>OnBeforeResponse</code> 函数</div>
+      <div class="sd">用 Ctrl+F 搜索 <code>OnBeforeResponse</code>，找到这个函数体</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="sn">3</div>
+    <div class="sb">
+      <div class="st">在函数体最开头追加下面这段代码</div>
+      <div class="sd">复制后粘贴到 <code>static function OnBeforeResponse(oSession: Session) {</code> 的下一行</div>
+      <div class="code-box" id="fiddlerCode">// ★ 羽毛球抢场注入 ★
+if (oSession.HostnameIs("bdtyg.cugb.edu.cn") &&
+    oSession.uriContains("/") &&
+    oSession.oResponse.headers.ExistsAndContains("Content-Type","text/html")) {
+    oSession.utilDecodeResponse();
+    var body = oSession.GetResponseBodyAsString();
+    if (body.IndexOf("_bk_inject") == -1) {
+        var script = "&lt;script src='https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js'&gt;&lt;/script&gt;&lt;script&gt;" + getBkScript() + "&lt;/script&gt;";
+        body = body.Replace("&lt;/body&gt;", script + "&lt;/body&gt;");
+        oSession.utilSetResponseBody(body);
+    }
+}</div>
+      <button class="copy-btn" id="btn1" onclick="copy1()">📋 复制这段代码</button>
+    </div>
+  </div>
+  <div class="step">
+    <div class="sn">4</div>
+    <div class="sb">
+      <div class="st">在同一个文件末尾（最后一个 <code>}</code> 前）追加辅助函数</div>
+      <div class="sd">这是抢场面板的完整代码，复制后粘贴到文件末尾</div>
+      <div class="code-box" id="helperCode">见下方「复制完整注入脚本」按钮</div>
+      <button class="copy-btn" id="btn2" onclick="copy2()">📋 复制完整注入脚本（粘贴到文件末尾）</button>
+    </div>
+  </div>
+  <div class="step">
+    <div class="sn">5</div>
+    <div class="sb">
+      <div class="st">保存文件（Ctrl+S），Fiddler 自动编译生效</div>
+      <div class="sd">右下角状态栏显示 <b style="color:#10b981">Script updated</b> 表示成功</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr">📱 第二步：使用抢场面板</div>
+  <div class="step">
+    <div class="sn">1</div>
+    <div class="sb">
+      <div class="st">确保 Fiddler 在运行，微信走 Fiddler 代理</div>
+      <div class="sd">就像你平时抓包时一样开着 Proxifier + Fiddler 即可</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="sn">2</div>
+    <div class="sb">
+      <div class="st">在微信里打开预约系统，刷新页面</div>
+      <div class="sd">右下角会出现一个 <b>🏸 蓝色浮动按钮</b></div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="sn">3</div>
+    <div class="sb">
+      <div class="st">点击按钮 → 配置 → 启动定时</div>
+      <div class="sd">选好日期（+1/+2/+3天）、场地、时间段，点「启动」，关闭手机睡觉<br>7:30 到点自动发请求，你只需要起来滑验证码 + 输密码</div>
+    </div>
+  </div>
+</div>
+
+<div class="notice yellow">
+  <b>⚠️ 注意</b>
+  每次抢完场后，可以在 Fiddler 里把注入代码注释掉（加 <code>//</code>），避免每次打开系统都显示面板
+</div>
+
+<script>
+const FIDDLER_INJECT = `// ★ 羽毛球抢场注入 ★
+if (oSession.HostnameIs("bdtyg.cugb.edu.cn") &&
+    oSession.uriContains("/") &&
+    oSession.oResponse.headers.ExistsAndContains("Content-Type","text/html")) {
+    oSession.utilDecodeResponse();
+    var body = oSession.GetResponseBodyAsString();
+    if (body.IndexOf("_bk_inject") == -1) {
+        var script = "<script src='https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js'></scr"+"ipt><scr"+"ipt>" + getBkScript() + "</scr"+"ipt>";
+        body = body.Replace("</body>", script + "</body>");
+        oSession.utilSetResponseBody(body);
+    }
+}`;
+
+const HELPER_FUNC = `
+static function getBkScript(): String {
+  return \`(function(){
+if(document.getElementById('_bk_inject'))return;
+var _tag=document.createElement('div');_tag.id='_bk_inject';document.body.appendChild(_tag);
+
+var COURTS={'1':'890407839460499456','2':'897319168721035264','3':'897319216791953408','4':'897319676093407232','5':'897319852216426496','6':'897320033116758016','7':'897320475481612288','8':'897320564409245696','9':'897321839163088896','10':'897321924424900608'};
+var VENUE_ID='889772856316272640';
+var TIMELIST=[{time:'09:00',status:'0'},{time:'10:00',status:'0'},{time:'11:00',status:'1'},{time:'14:00',status:'0'},{time:'15:00',status:'0'},{time:'16:00',status:'0'},{time:'17:00',status:'0'},{time:'18:00',status:'0'},{time:'19:00',status:'0'},{time:'20:00',status:'0'},{time:'21:00',status:'0'},{time:'22:00',status:'1'}];
+var TIME_IDX={'14:00':0,'15:00':1,'16:00':2,'17:00':3,'18:00':4,'19:00':5,'20:00':6,'21:00':7};
+var WD=['日','一','二','三','四','五','六'];
+var p2=function(n){return String(n).padStart(2,'0');};
+var fmt=function(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());};
+var td=function(n){var d=new Date();d.setDate(d.getDate()+n);return d;};
+var S={day:1,court:'any',slots:['16:00','17:00'],people:5,armed:false};
+
+function encrypt(obj){
+  var K=CryptoJS.enc.Utf8.parse('0102030405060708'),IV=CryptoJS.enc.Utf8.parse('0102030405060708');
+  var p=CryptoJS.enc.Utf8.parse(JSON.stringify(obj));
+  var e=CryptoJS.AES.encrypt(p,K,{iv:IV,mode:CryptoJS.mode.CBC,padding:CryptoJS.pad.Pkcs7});
+  return e.ciphertext.toString().toUpperCase();
+}
+
+// 悬浮按钮
+var fab=document.createElement('div');
+fab.style.cssText='position:fixed;bottom:80px;right:16px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:99998;box-shadow:0 4px 15px rgba(59,130,246,.5);transition:transform .2s';
+fab.textContent='🏸';
+fab.onclick=function(){panel.style.display=panel.style.display==='none'?'flex':'none';};
+document.body.appendChild(fab);
+
+// 面板
+var panel=document.createElement('div');
+panel.style.cssText='position:fixed;top:0;right:0;width:300px;height:100vh;background:#07101f;border-left:1px solid #1e2d45;z-index:99999;display:none;flex-direction:column;font-family:system-ui,sans-serif;font-size:13px;color:#f1f5f9;box-shadow:-6px 0 24px rgba(0,0,0,.6);overflow-y:auto';
+panel.innerHTML='<div style="background:linear-gradient(135deg,#0a1628,#1a3a5c);padding:14px;border-bottom:1px solid #1e2d45;display:flex;justify-content:space-between;align-items:center;flex-shrink:0"><div><div style="font-size:15px;font-weight:900">🏸 抢场神器</div><div style="font-size:10px;color:#94a3b8;margin-top:1px">地大北京羽毛球自动预约</div></div><button id="_bk_x" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1">×</button></div>'
++'<div id="_bk_cd" style="margin:10px;padding:12px;background:#0f1d30;border:1px solid #1e2d45;border-radius:12px;text-align:center;flex-shrink:0"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px" id="_bk_cdl">距离开放还有</div><div id="_bk_cdt" style="font-size:36px;font-weight:900;color:#60a5fa;letter-spacing:-2px;font-variant-numeric:tabular-nums">--:--:--</div><div id="_bk_cds" style="font-size:10px;color:#94a3b8;margin-top:3px">-</div><input type="time" id="_bk_ot" value="07:30" style="margin-top:8px;width:100%;background:#162540;border:1px solid #1e2d45;border-radius:7px;color:#f1f5f9;padding:6px 10px;font-size:12px;outline:none;text-align:center"></div>'
++'<div style="padding:0 10px 6px"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📅 预约日期</div><div style="display:flex;gap:5px" id="_bk_days"></div></div>'
++'<div style="padding:0 10px 6px"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🏟️ 场地</div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px" id="_bk_courts"></div></div>'
++'<div style="padding:0 10px 6px"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🕐 时间段（可多选）</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px" id="_bk_slots"></div></div>'
++'<div style="padding:0 10px 6px"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">👥 同行人数</div><div style="display:flex;gap:5px" id="_bk_ppl"></div></div>'
++'<div style="padding:0 10px 4px"><button id="_bk_go" style="width:100%;padding:13px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:11px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(59,130,246,.3)">🚀 启动定时抢场</button></div>'
++'<div style="padding:4px 10px 6px"><button id="_bk_test" style="width:100%;padding:10px;background:transparent;border:1px solid #1e2d45;border-radius:11px;color:#94a3b8;font-size:12px;cursor:pointer">⚡ 立即测试发送</button></div>'
++'<div style="padding:0 10px 10px"><div id="_bk_log" style="background:#020810;border:1px solid #1e2d45;border-radius:9px;padding:9px;font-family:Courier New,monospace;font-size:9.5px;line-height:1.8;max-height:120px;overflow-y:auto;color:#475569"></div></div>';
+document.body.appendChild(panel);
+
+document.getElementById('_bk_x').onclick=function(){panel.style.display='none';};
+
+// 日期按钮
+var daysEl=document.getElementById('_bk_days');
+[1,2,3].forEach(function(n){
+  var d=td(n),b=document.createElement('button');
+  b.id='_bkd'+n;
+  b.style.cssText='flex:1;padding:8px 2px;border-radius:8px;border:2px solid '+(n===1?'#3b82f6':'#1e2d45')+';background:'+(n===1?'rgba(59,130,246,.15)':'#162540')+';color:'+(n===1?'#f1f5f9':'#94a3b8')+';font-size:10px;font-weight:600;cursor:pointer;line-height:1.5';
+  b.innerHTML=fmt(d)+'<br><span style="font-size:9px;opacity:.7">周'+WD[d.getDay()]+'</span>';
+  b.onclick=function(){
+    S.day=n;
+    [1,2,3].forEach(function(i){
+      var bb=document.getElementById('_bkd'+i),on=i===n;
+      bb.style.borderColor=on?'#3b82f6':'#1e2d45';
+      bb.style.background=on?'rgba(59,130,246,.15)':'#162540';
+      bb.style.color=on?'#f1f5f9':'#94a3b8';
+    });
+  };
+  daysEl.appendChild(b);
+});
+
+// 场地按钮
+var courtsEl=document.getElementById('_bk_courts');
+var anyBtn=document.createElement('button');
+anyBtn.id='_bkc_any';
+anyBtn.style.cssText='grid-column:1/-1;padding:7px;border-radius:8px;border:1px solid rgba(16,185,129,.3);background:rgba(16,185,129,.1);color:#10b981;font-size:11px;font-weight:600;cursor:pointer';
+anyBtn.textContent='🎲 随机最优';
+anyBtn.onclick=function(){pickCourt('any');};
+courtsEl.appendChild(anyBtn);
+Object.keys(COURTS).forEach(function(k){
+  var b=document.createElement('button');
+  b.id='_bkc_'+k;
+  b.style.cssText='padding:7px 2px;border-radius:8px;border:1px solid #1e2d45;background:#162540;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer';
+  b.textContent=k+'号';
+  b.onclick=function(){pickCourt(k);};
+  courtsEl.appendChild(b);
+});
+
+function pickCourt(c){
+  S.court=c;
+  document.querySelectorAll('[id^=_bkc_]').forEach(function(b){
+    var on=b.id==='_bkc_'+c,isAny=b.id==='_bkc_any';
+    b.style.borderColor=on?(isAny?'#10b981':'#3b82f6'):'#1e2d45';
+    b.style.background=on?(isAny?'rgba(16,185,129,.15)':'rgba(59,130,246,.15)'):'#162540';
+    b.style.color=on?(isAny?'#10b981':'#f1f5f9'):'#94a3b8';
+  });
+}
+
+// 时间段
+var slotsEl=document.getElementById('_bk_slots');
+Object.keys(TIME_IDX).forEach(function(t){
+  var h=parseInt(t),price=h>=18?40:10,on=S.slots.indexOf(t)>=0;
+  var b=document.createElement('button');
+  b.dataset.t=t;
+  b.style.cssText='padding:8px 4px;border-radius:8px;border:2px solid '+(on?'#3b82f6':'#1e2d45')+';background:'+(on?'rgba(59,130,246,.12)':'#162540')+';color:'+(on?'#f1f5f9':'#94a3b8')+';font-size:11px;cursor:pointer;text-align:center';
+  b.innerHTML=t+'-'+p2(h+1)+':00<br><span style="font-size:9px;color:'+(price===10?'#10b981':'#f59e0b')+'">¥'+price+'</span>';
+  b.onclick=function(){
+    var idx=S.slots.indexOf(t);
+    if(idx>=0){S.slots.splice(idx,1);b.style.borderColor='#1e2d45';b.style.background='#162540';b.style.color='#94a3b8';}
+    else{S.slots.push(t);b.style.borderColor='#3b82f6';b.style.background='rgba(59,130,246,.12)';b.style.color='#f1f5f9';}
+  };
+  slotsEl.appendChild(b);
+});
+
+// 人数
+var pplEl=document.getElementById('_bk_ppl');
+[3,4,5].forEach(function(n){
+  var b=document.createElement('button');
+  b.id='_bkp'+n;
+  b.style.cssText='flex:1;padding:10px;border-radius:9px;border:2px solid '+(n===5?'#3b82f6':'#1e2d45')+';background:'+(n===5?'rgba(59,130,246,.12)':'#162540')+';color:'+(n===5?'#f1f5f9':'#94a3b8')+';font-size:15px;font-weight:700;cursor:pointer';
+  b.textContent=n+'人';
+  b.onclick=function(){
+    S.people=n;
+    [3,4,5].forEach(function(i){
+      var bb=document.getElementById('_bkp'+i),on=i===n;
+      bb.style.borderColor=on?'#3b82f6':'#1e2d45';
+      bb.style.background=on?'rgba(59,130,246,.12)':'#162540';
+      bb.style.color=on?'#f1f5f9':'#94a3b8';
+    });
+  };
+  pplEl.appendChild(b);
+});
+
+function bkLog(type,msg){
+  var el=document.getElementById('_bk_log'),now=new Date();
+  var t=p2(now.getHours())+':'+p2(now.getMinutes())+':'+p2(now.getSeconds());
+  var colors={ok:'#10b981',er:'#ef4444',inf:'#60a5fa',wn:'#f59e0b'};
+  var d=document.createElement('div');d.style.color=colors[type]||'#94a3b8';
+  d.textContent='['+t+'] '+msg;el.appendChild(d);el.scrollTop=el.scrollHeight;
+  if(el.children.length>50)el.removeChild(el.children[0]);
+}
+
+async function doBook(){
+  var token=uni&&uni.getStorageSync?uni.getStorageSync('token'):'';
+  if(!token)token=localStorage.getItem('token')||'';
+  if(!token){bkLog('er','❌ 未找到token，请先登录系统');return;}
+  if(!S.slots.length){bkLog('er','❌ 请选择时间段');return;}
+  var d=td(S.day),date=fmt(d);
+  var courtKey=S.court==='any'?String(Math.floor(Math.random()*10)+1):S.court;
+  var courtIdx=parseInt(courtKey)-1;
+  var nodeList=Object.entries(COURTS).map(function(e){return{sitename:e[0]+'号场',nodeid:e[1]};});
+  var sortedSlots=[].concat(S.slots).sort();
+  var coordinatesList=sortedSlots.map(function(slot){return courtIdx+'-'+TIME_IDX[slot];});
+  var body={nodeList:nodeList,payprice:'5000',isLastDay:false,appointmentDate:date,timeList:TIMELIST,coordinatesList:coordinatesList,booktype:2,nodeid:VENUE_ID,childrennum:String(S.people),followList:[],txamt:'5000',payway:'77'};
+  bkLog('inf','📤 '+date+' · '+courtKey+'号场 · '+sortedSlots.join(' ')+' · '+S.people+'人');
+  bkLog('inf','坐标: '+coordinatesList.join(', '));
+  var item=encrypt(body);
+  bkLog('inf','发送中...');
+  try{
+    var res=await fetch('/service/appointment/appointment/phone/createBookingBytime',{method:'POST',headers:{'Content-Type':'application/json','token':token},body:JSON.stringify({item:item})});
+    var data=await res.json();
+    bkLog('inf','响应: '+JSON.stringify(data));
+    if(data.success===true||data.code==200)bkLog('ok','🎉 成功！请完成验证码和支付！');
+    else bkLog('wn','消息: '+(data.message||JSON.stringify(data)));
+  }catch(e){bkLog('er','❌ '+e.message);}
+}
+
+document.getElementById('_bk_go').onclick=function(){
+  S.armed=!S.armed;
+  var btn=document.getElementById('_bk_go');
+  if(S.armed){btn.textContent='🔴 取消（已启动）';btn.style.background='linear-gradient(135deg,#dc2626,#ef4444)';bkLog('ok','✅ 已启动！到点自动发送');}
+  else{btn.textContent='🚀 启动定时抢场';btn.style.background='linear-gradient(135deg,#1d4ed8,#3b82f6)';bkLog('inf','已取消');}
+};
+document.getElementById('_bk_test').onclick=function(){bkLog('wn','⚡ 测试...');doBook();};
+
+setInterval(function(){
+  var now=new Date(),ot=document.getElementById('_bk_ot').value.split(':');
+  var target=new Date();target.setHours(+ot[0],+ot[1],0,0);
+  if(now>=target)target.setDate(target.getDate()+1);
+  var diff=target-now,h=Math.floor(diff/3600000),m=Math.floor(diff%3600000/60000),s=Math.floor(diff%60000/1000);
+  var el=document.getElementById('_bk_cdt'),cd=document.getElementById('_bk_cd');
+  var dd=td(S.day);
+  document.getElementById('_bk_cds').textContent='目标: '+fmt(dd)+' 周'+WD[dd.getDay()];
+  if(diff<=500){el.textContent='🔥 开抢！';el.style.color='#10b981';if(S.armed){S.armed=false;doBook();}return;}
+  el.textContent=p2(h)+':'+p2(m)+':'+p2(s);
+  el.style.color=diff<60000?'#f59e0b':'#60a5fa';
+  cd.style.borderColor=S.armed?'#3b82f6':'#1e2d45';
+  cd.style.boxShadow=S.armed?'0 0 20px rgba(59,130,246,.3)':'none';
+},1000);
+
+bkLog('ok','✅ 抢场面板已加载');
+bkLog('inf','选好配置 → 启动定时 → 等待 7:30');
+})();\`;
+}
+`;
+
+document.getElementById('fiddlerCode').textContent = FIDDLER_INJECT;
+document.getElementById('helperCode').textContent = HELPER_FUNC.substring(0, 120) + '\n... (点击「复制完整注入脚本」获取完整代码)';
+
+function copy1() {
+  navigator.clipboard.writeText(FIDDLER_INJECT).then(() => {
+    const b = document.getElementById('btn1');
+    b.textContent = '✅ 已复制！';
+    b.className = 'copy-btn ok';
+    setTimeout(() => { b.textContent = '📋 复制这段代码'; b.className = 'copy-btn'; }, 3000);
+  });
+}
+
+function copy2() {
+  navigator.clipboard.writeText(HELPER_FUNC).then(() => {
+    const b = document.getElementById('btn2');
+    b.textContent = '✅ 已复制！';
+    b.className = 'copy-btn ok';
+    setTimeout(() => { b.textContent = '📋 复制完整注入脚本'; b.className = 'copy-btn'; }, 3000);
+  });
+}
+</script>
+</body>
+</html>
