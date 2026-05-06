@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>🏸 羽毛球抢场神器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+:root{
+  --bg:#07101f;--s1:#0f1d30;--s2:#162540;
+  --acc:#3b82f6;--acc2:#60a5fa;
+  --ok:#10b981;--warn:#f59e0b;--err:#ef4444;
+  --t1:#f1f5f9;--t2:#94a3b8;--bd:#1e2d45;
+  --glow:0 0 20px rgba(59,130,246,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;padding-bottom:80px}
+
+/* header */
+.hdr{background:linear-gradient(135deg,#0a1628,#1a3a5c);padding:18px 18px 14px;border-bottom:1px solid var(--bd);position:relative;overflow:hidden}
+.hdr::after{content:'🏸';position:absolute;right:14px;top:12px;font-size:42px;opacity:.13}
+.hdr h1{font-size:19px;font-weight:900;letter-spacing:-.5px}
+.hdr h1 span{color:var(--acc2)}
+.hdr p{font-size:11px;color:var(--t2);margin-top:3px}
+
+/* countdown */
+.cd-box{background:var(--s1);border:1px solid var(--bd);border-radius:14px;margin:12px 14px;padding:14px;text-align:center;transition:all .3s}
+.cd-box.live{border-color:var(--acc);box-shadow:var(--glow)}
+.cd-box.soon{border-color:var(--warn);box-shadow:0 0 16px rgba(245,158,11,.35);animation:pulse .6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.cd-lbl{font-size:10px;color:var(--t2);letter-spacing:1px;margin-bottom:5px}
+.cd-num{font-size:40px;font-weight:900;letter-spacing:-3px;color:var(--acc2);font-variant-numeric:tabular-nums;line-height:1}
+.cd-num.w{color:var(--warn)}.cd-num.g{color:var(--ok)}
+.cd-sub{font-size:11px;color:var(--t2);margin-top:4px}
+.bar{height:3px;background:var(--bd);border-radius:2px;margin:9px 0 0;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:2px;transition:width 1s linear}
+.cd-wake{font-size:10px;margin-top:4px;color:var(--ok)}
+
+/* target */
+.target{display:flex;align-items:center;gap:8px;margin:0 14px 7px;padding:8px 12px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:9px;font-size:12px;color:var(--t2)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--acc);flex-shrink:0;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+.target b{color:var(--t1)}
+
+/* card */
+.card{margin:7px 14px;background:var(--s1);border:1px solid var(--bd);border-radius:13px;overflow:hidden}
+.card-hdr{padding:8px 13px;font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.8px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.row{padding:11px 13px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.row:last-child{border-bottom:none}
+.row-label{font-size:13px;font-weight:500}
+.row-hint{font-size:10px;color:var(--t2);margin-top:2px}
+input[type=time],input[type=number],textarea{background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--t1);padding:7px 10px;font-family:inherit;font-size:12px;outline:none;transition:border .2s}
+input:focus,textarea:focus{border-color:var(--acc)}
+textarea{resize:none;width:100%;margin-top:7px;font-size:10px;line-height:1.6}
+
+/* day buttons */
+.day-row{display:flex;gap:6px;padding:7px 13px 11px}
+.day-btn{flex:1;padding:8px 3px;border-radius:8px;border:2px solid var(--bd);background:var(--s2);color:var(--t2);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.5}
+.day-btn small{display:block;font-size:9px;font-weight:400;opacity:.7;margin-top:1px}
+.day-btn.on{border-color:var(--acc);background:rgba(59,130,246,.14);color:var(--acc2)}
+.day-btn.on small{opacity:1}
+
+/* people */
+.people{display:flex;gap:6px;padding:9px 13px}
+.p-btn{flex:1;padding:10px;border-radius:8px;border:2px solid var(--bd);background:var(--s2);color:var(--t2);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center}
+.p-btn.on{border-color:var(--acc);background:rgba(59,130,246,.12);color:var(--t1)}
+
+/* presets */
+.presets{display:flex;flex-wrap:wrap;gap:5px;padding:7px 13px 9px}
+.preset-btn{padding:5px 9px;border-radius:18px;border:1px solid var(--bd);background:var(--s2);color:var(--t2);font-family:inherit;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.preset-btn:active{background:rgba(59,130,246,.15);border-color:var(--acc);color:var(--acc2)}
+.preset-btn.danger{border-color:rgba(239,68,68,.3);color:var(--err)}
+.preset-btn.query{border-color:rgba(16,185,129,.3);color:var(--ok)}
+.preset-btn.query:active{background:rgba(16,185,129,.1)}
+.preset-btn.query.loading{opacity:.6;cursor:wait}
+
+/* booking grid */
+.grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 13px 8px}
+.booking-grid{border-collapse:separate;border-spacing:2px;width:100%}
+.booking-grid thead th{
+  background:var(--s2);color:var(--t2);font-size:9px;font-weight:700;
+  padding:5px 2px;border-radius:5px;text-align:center;cursor:pointer;
+  min-width:30px;user-select:none;transition:all .15s}
+.booking-grid thead th:hover{background:rgba(59,130,246,.2);color:var(--acc2)}
+.booking-grid thead th.all-on{background:var(--acc);color:#fff}
+th.th-time{min-width:76px;width:76px;background:transparent !important;cursor:default;font-size:9px;color:var(--t2);text-align:right}
+
+/* time row label */
+.time-label{
+  font-size:9px;color:var(--t2);text-align:right;
+  padding:3px 5px 3px 0;cursor:pointer;user-select:none;
+  white-space:nowrap;transition:color .15s;border-radius:4px;
+  vertical-align:middle}
+.time-label:hover{color:var(--acc2)}
+.time-label.row-on{color:var(--acc2);font-weight:700}
+
+/* slot cells */
+.slot{
+  height:32px;border-radius:5px;cursor:pointer;transition:all .12s;
+  position:relative;user-select:none;text-align:center;vertical-align:middle;
+  font-size:9px;font-weight:700;line-height:32px}
+/* price tiers */
+.slot.cheap{background:#0d2d1a;border:1px solid #134d25;color:#34d399}
+.slot.exp{background:#2a1a08;border:1px solid #4a2e0e;color:#fbbf24}
+/* closed (no availability) */
+.slot.closed{background:#111827;border:1px solid #1f2937;color:#374151;cursor:not-allowed;opacity:.5}
+.slot.closed::after{content:'✕';font-size:11px}
+/* booked */
+.slot.booked{background:#1a1a2e;border:1px solid #2d2d4a;color:#4b5563;cursor:not-allowed}
+.slot.booked::after{content:'满';font-size:10px}
+/* selected */
+.slot.on{background:var(--acc) !important;border-color:var(--acc) !important;color:#fff !important;box-shadow:0 0 6px rgba(59,130,246,.5)}
+.slot.on::after{content:'✓';font-size:12px;font-weight:900}
+.slot:not(.closed):not(.booked):active{transform:scale(.88)}
+
+/* summary */
+.summary{padding:7px 13px;font-size:11px;color:var(--t2);display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--bd)}
+.summary b{color:var(--acc2)}
+.summary .price{color:var(--ok);font-weight:700;font-size:13px}
+
+/* legend */
+.legend{display:flex;gap:10px;padding:4px 13px 8px;font-size:9px;color:var(--t2)}
+.leg{display:flex;align-items:center;gap:4px}
+.leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.leg-dot.cheap{background:#0d2d1a;border:1px solid #134d25}
+.leg-dot.exp{background:#2a1a08;border:1px solid #4a2e0e}
+.leg-dot.on{background:var(--acc)}
+.leg-dot.closed{background:#111827;border:1px solid #1f2937}
+.leg-dot.booked{background:#1a1a2e;border:1px solid #2d2d4a}
+
+/* buttons */
+.btn-go{display:block;width:calc(100% - 28px);margin:8px 14px;padding:14px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;box-shadow:0 4px 14px rgba(59,130,246,.3)}
+.btn-go:active{transform:scale(.98)}
+.btn-go.disarm{background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 4px 14px rgba(239,68,68,.3)}
+.btn-test{display:block;width:calc(100% - 28px);margin:0 14px 8px;padding:12px;background:transparent;border:1px solid var(--bd);border-radius:12px;color:var(--t2);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;text-align:center}
+.btn-test:active{background:var(--s2)}
+
+/* log */
+.logbox{margin:7px 14px;background:#040810;border:1px solid var(--bd);border-radius:10px;padding:10px;font-family:'Courier New',monospace;font-size:10px;line-height:1.9;max-height:180px;overflow-y:auto;color:#475569}
+.logbox .ok{color:var(--ok)}.logbox .er{color:var(--err)}.logbox .inf{color:var(--acc2)}.logbox .wn{color:var(--warn)}
+
+/* notice */
+.notice{margin:0 14px 7px;padding:9px 12px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;font-size:11px;color:#fbbf24;line-height:1.7}
+.notice b{display:block;margin-bottom:2px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>🏸 羽毛球<span>抢场神器</span></h1>
+  <p>中国地质大学（北京）· 智能定时预约 v5.0 · 可视化选场</p>
+</div>
+
+<!-- Countdown -->
+<div class="cd-box" id="cdBox">
+  <div class="cd-lbl" id="cdLbl">距离开放还有</div>
+  <div class="cd-num" id="cdNum">--:--:--</div>
+  <div class="cd-sub" id="cdSub">计算中...</div>
+  <div class="bar"><div class="bar-fill" id="barFill" style="width:0"></div></div>
+  <div class="cd-wake" id="cdWake"></div>
+</div>
+
+<!-- Target -->
+<div class="target"><div class="dot"></div><span id="targetTxt">请在格子里选场地和时间</span></div>
+
+<!-- Date/Time config -->
+<div class="card">
+  <div class="card-hdr"><span>📅 预约配置</span></div>
+  <div style="padding:6px 13px 2px;font-size:10px;color:var(--t2)">预约哪天（今天 / 明天 / 后天）</div>
+  <div class="day-row">
+    <button class="day-btn" id="d1" onclick="setDay(0)">今天<small id="d1lbl"></small></button>
+    <button class="day-btn" id="d2" onclick="setDay(1)">明天<small id="d2lbl"></small></button>
+    <button class="day-btn on" id="d3" onclick="setDay(2)">后天<small id="d3lbl"></small></button>
+  </div>
+  <div class="row">
+    <div><div class="row-label">开放时间</div><div class="row-hint">到点自动并发发请求</div></div>
+    <input type="time" id="openTime" value="07:30" style="width:100px" oninput="startTick()">
+  </div>
+  <div class="row">
+    <div><div class="row-label">提前触发</div><div class="row-hint">补偿网络延迟 ms</div></div>
+    <input type="number" id="leadMs" value="200" min="0" max="3000" style="width:80px;text-align:center">
+  </div>
+</div>
+
+<!-- Grid -->
+<div class="card">
+  <div class="card-hdr">
+    <span>🏟️ 场地 × 时间</span>
+    <span style="font-size:9px;font-weight:400;color:var(--t2)">点时间行=整行 · 点场地=整列</span>
+  </div>
+  <div class="presets">
+    <button class="preset-btn query" id="queryBtn" onclick="queryAvailability()">🔍 查询空位</button>
+    <button class="preset-btn" onclick="quickSelect('09:00','12:00')">上午09-12</button>
+    <button class="preset-btn" onclick="quickSelect('12:00','14:00')">中午12-14</button>
+    <button class="preset-btn" onclick="quickSelect('14:00','18:00')">下午14-18</button>
+    <button class="preset-btn" onclick="quickSelect('18:00','22:00')">晚上18-22</button>
+    <button class="preset-btn danger" onclick="clearAll()">✕ 清空</button>
+  </div>
+  <div class="grid-wrap">
+    <table class="booking-grid" id="bookingGrid">
+      <thead><tr id="gridHead"></tr></thead>
+      <tbody id="gridBody"></tbody>
+    </table>
+  </div>
+  <!-- Legend -->
+  <div class="legend">
+    <div class="leg"><div class="leg-dot cheap"></div>¥10 工作日白天</div>
+    <div class="leg"><div class="leg-dot exp"></div>¥40 其他时段</div>
+    <div class="leg"><div class="leg-dot on"></div>已选</div>
+    <div class="leg"><div class="leg-dot booked"></div>已满</div>
+    <div class="leg"><div class="leg-dot closed"></div>不开放</div>
+  </div>
+  <div class="summary">
+    <span>已选 <b id="selCount">0</b> 格 · <b id="selCourts">0</b> 场 × <b id="selTimes">0</b> 段</span>
+    <span class="price" id="selPrice">¥0</span>
+  </div>
+</div>
+
+<!-- People -->
+<div class="card">
+  <div class="card-hdr"><span>👥 同行人数</span></div>
+  <div class="people">
+    <button class="p-btn" id="p3" onclick="pickPeople(3)">3人</button>
+    <button class="p-btn" id="p4" onclick="pickPeople(4)">4人</button>
+    <button class="p-btn on" id="p5" onclick="pickPeople(5)">5人</button>
+  </div>
+</div>
+
+<!-- Token -->
+<div class="card">
+  <div class="card-hdr"><span>🔑 身份令牌 Token</span></div>
+  <div class="row" style="flex-direction:column;align-items:flex-start">
+    <div style="font-size:10px;color:var(--t2)">企业微信抓包 → 找请求头 token 字段 · 自动保存</div>
+    <textarea id="token" rows="4" placeholder="粘贴 token..."></textarea>
+  </div>
+</div>
+
+<div class="notice">
+  <b>⚠️ 使用流程</b>
+  ① 填 Token → 选日期 → 点「查询空位」看哪些格子可预约<br>
+  ② 在绿/橙格子上点选 → 启动定时 → 7:30 自动并发抢<br>
+  ③ 收到成功提示后立刻：<b>滑动验证码</b> + <b>支付密码</b><br>
+  ④ 工作日09-18时¥10/场·小时，其余时段¥40
+</div>
+
+<button class="btn-go" id="armBtn" onclick="toggleArm()">🚀 启动定时抢场</button>
+<button class="btn-test" onclick="fireNow()">⚡ 立即测试（不等7:30）</button>
+
+<div class="card">
+  <div class="card-hdr"><span>📋 运行日志</span></div>
+  <div class="logbox" id="log"><span style="color:#334155">等待操作...</span></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// 常量
+// ═══════════════════════════════════════════════════
+const COURTS = {
+  '1':'890407839460499456','2':'897319168721035264','3':'897319216791953408',
+  '4':'897319676093407232','5':'897319852216426496','6':'897320033116758016',
+  '7':'897320475481612288','8':'897320564409245696','9':'897321839163088896',
+  '10':'897321924424900608'
+};
+const ALL_IDS  = Object.keys(COURTS);
+const VENUE_ID = '889772856316272640';
+const PROXY    = 'https://autumn-water-61ca.1713885931.workers.dev';
+const API_BOOK = '/service/appointment/appointment/phone/createBookingBytime';
+// 查询接口 — 常见命名规律，如失败会自动提示
+const API_QUERY = '/service/appointment/appointment/phone/getBookingByDate';
+const WEEKDAYS = ['日','一','二','三','四','五','六'];
+
+// 完整时间段（09:00 开始，每格1小时，共13格到22:00）
+const ALL_TIMES = [
+  '09:00','10:00','11:00','12:00','13:00',
+  '14:00','15:00','16:00','17:00',
+  '18:00','19:00','20:00','21:00'
+];
+
+// 服务端 coordinatesList 中的 timeSlotIdx（以09:00=0为基准）
+const SLOT_IDX = {
+  '09:00':0,'10:00':1,'11:00':2,'12:00':3,'13:00':4,
+  '14:00':5,'15:00':6,'16:00':7,'17:00':8,
+  '18:00':9,'19:00':10,'20:00':11,'21:00':12
+};
+
+// 完整 timeList（与服务端约定的格式一致）
+const TIME_LIST = ALL_TIMES.map(t => ({time:t, status:'0'}))
+  .concat([{time:'22:00', status:'1'}]);
+
+// ═══════════════════════════════════════════════════
+// 价格计算（按场计费）
+// 工作日09:00–18:00（09-17时段）= ¥10 = 1000分
+// 其余（工作日晚间 + 节假日全天）= ¥40 = 4000分
+// ═══════════════════════════════════════════════════
+function slotPrice(dayOffset, startTime) {
+  const d = new Date();
+  d.setDate(d.getDate() + dayOffset);
+  const dow  = d.getDay();              // 0=日, 6=六
+  const isWD = dow >= 1 && dow <= 5;   // 工作日
+  const h    = parseInt(startTime);     // 起始小时
+  return (isWD && h >= 9 && h < 18) ? 1000 : 4000;
+}
+
+// ═══════════════════════════════════════════════════
+// AES-CBC / PKCS7 / HEX uppercase
+// ═══════════════════════════════════════════════════
+const AES_KEY = CryptoJS.enc.Utf8.parse('0102030405060708');
+const AES_IV  = CryptoJS.enc.Utf8.parse('0102030405060708');
+function aesEncrypt(obj) {
+  const plain = CryptoJS.enc.Utf8.parse(JSON.stringify(obj));
+  const enc   = CryptoJS.AES.encrypt(plain, AES_KEY, {
+    iv: AES_IV, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7
+  });
+  return enc.ciphertext.toString().toUpperCase();
+}
+
+// ═══════════════════════════════════════════════════
+// 状态
+// ═══════════════════════════════════════════════════
+const S = {
+  people: 5, dayOffset: 2,
+  armed: false, firing: false, tick: null
+};
+const selected = new Set();          // "court-time" e.g. "3-16:00"
+const closedSet = new Set();         // 不开放的格子（课程占用等）
+const bookedSet = new Set();         // 已满/已预约
+
+// ═══════════════════════════════════════════════════
+// 格子构建
+// ═══════════════════════════════════════════════════
+function buildGrid() {
+  const head = document.getElementById('gridHead');
+  const body = document.getElementById('gridBody');
+
+  // Header: 空格 + 场地列
+  let hHTML = '<th class="th-time"></th>';
+  ALL_IDS.forEach(c => {
+    hHTML += `<th id="ch_${c}" onclick="toggleCourt('${c}')">${c}号</th>`;
+  });
+  head.innerHTML = hHTML;
+  body.innerHTML = '';
+
+  // Rows: 时间 × 场地
+  ALL_TIMES.forEach((t, ti) => {
+    const nextH = ALL_TIMES[ti + 1] || '22:00';
+    const tid   = t.replace(':', '');
+    const tr    = document.createElement('tr');
+    const labelTxt = t + '-' + nextH;
+    let rHTML = `<td class="time-label" id="tl_${tid}" onclick="toggleTime('${t}')">${labelTxt}</td>`;
+    ALL_IDS.forEach(c => {
+      const fen    = slotPrice(S.dayOffset, t);
+      const pClass = fen === 1000 ? 'cheap' : 'exp';
+      const pLabel = fen === 1000 ? '10' : '40';
+      rHTML += `<td class="slot ${pClass}" id="slot_${c}_${tid}"
+        onclick="toggleCell('${c}','${t}')" data-fen="${fen}">${pLabel}</td>`;
+    });
+    tr.innerHTML = rHTML;
+    body.appendChild(tr);
+  });
+}
+
+// 价格类重新渲染（切换日期时调用）
+function refreshPriceClasses() {
+  ALL_TIMES.forEach(t => {
+    const tid = t.replace(':', '');
+    ALL_IDS.forEach(c => {
+      const cell = document.getElementById(`slot_${c}_${tid}`);
+      if (!cell) return;
+      const fen    = slotPrice(S.dayOffset, t);
+      const pClass = fen === 1000 ? 'cheap' : 'exp';
+      const pLabel = fen === 1000 ? '10' : '40';
+      cell.dataset.fen = fen;
+      // 保留 on/booked/closed 状态
+      cell.classList.remove('cheap', 'exp');
+      if (!cell.classList.contains('booked') && !cell.classList.contains('closed'))
+        cell.classList.add(pClass);
+      if (!cell.classList.contains('on') && !cell.classList.contains('booked') && !cell.classList.contains('closed'))
+        cell.textContent = pLabel;
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// 选择逻辑
+// ═══════════════════════════════════════════════════
+function toggleCell(court, time, forceState) {
+  const key  = court + '-' + time;
+  const tid  = time.replace(':', '');
+  const cell = document.getElementById(`slot_${court}_${tid}`);
+  if (!cell) return;
+  if (cell.classList.contains('closed') || cell.classList.contains('booked')) return;
+
+  let isOn;
+  if      (forceState === true)  { selected.add(key);    isOn = true;  }
+  else if (forceState === false) { selected.delete(key); isOn = false; }
+  else if (selected.has(key))    { selected.delete(key); isOn = false; }
+  else                           { selected.add(key);    isOn = true;  }
+
+  cell.classList.toggle('on', isOn);
+  if (!isOn) {
+    const fen    = parseInt(cell.dataset.fen || '4000');
+    cell.textContent = fen === 1000 ? '10' : '40';
+  }
+  updateSummary();
+}
+
+function toggleTime(time) {
+  const available = ALL_IDS.filter(c => {
+    const cell = document.getElementById(`slot_${c}_${time.replace(':','')}`);
+    return cell && !cell.classList.contains('closed') && !cell.classList.contains('booked');
+  });
+  const allOn = available.every(c => selected.has(c + '-' + time));
+  available.forEach(c => toggleCell(c, time, !allOn));
+}
+
+function toggleCourt(court) {
+  const available = ALL_TIMES.filter(t => {
+    const cell = document.getElementById(`slot_${court}_${t.replace(':','')}`);
+    return cell && !cell.classList.contains('closed') && !cell.classList.contains('booked');
+  });
+  const allOn = available.every(t => selected.has(court + '-' + t));
+  available.forEach(t => toggleCell(court, t, !allOn));
+}
+
+function quickSelect(startTime, endTime) {
+  const range = ALL_TIMES.filter(t => t >= startTime && t < endTime);
+  const avail = [];
+  range.forEach(t => ALL_IDS.forEach(c => {
+    const cell = document.getElementById(`slot_${c}_${t.replace(':','')}`);
+    if (cell && !cell.classList.contains('closed') && !cell.classList.contains('booked'))
+      avail.push({c, t});
+  }));
+  const allOn = avail.every(({c, t}) => selected.has(c + '-' + t));
+  avail.forEach(({c, t}) => toggleCell(c, t, !allOn));
+}
+
+function clearAll() {
+  [...selected].forEach(key => {
+    selected.delete(key);
+    const dash  = key.indexOf('-');
+    const court = key.slice(0, dash);
+    const time  = key.slice(dash + 1);
+    const cell  = document.getElementById(`slot_${court}_${time.replace(':','')}`);
+    if (cell) {
+      cell.classList.remove('on');
+      const fen = parseInt(cell.dataset.fen || '4000');
+      cell.textContent = fen === 1000 ? '10' : '40';
+    }
+  });
+  updateSummary();
+}
+
+function updateSummary() {
+  const courts = new Set([...selected].map(k => k.split(/-(.+)/)[0]));
+  const times  = new Set([...selected].map(k => k.split(/-(.+)/)[1]));
+  const count  = selected.size;
+  // Price = sum of each selected cell's actual price
+  let totalFen = 0;
+  for (const key of selected) {
+    const dash  = key.indexOf('-');
+    const court = key.slice(0, dash);
+    const time  = key.slice(dash + 1);
+    const cell  = document.getElementById(`slot_${court}_${time.replace(':','')}`);
+    totalFen   += cell ? parseInt(cell.dataset.fen || '4000') : 4000;
+  }
+  document.getElementById('selCount').textContent  = count;
+  document.getElementById('selCourts').textContent = courts.size;
+  document.getElementById('selTimes').textContent  = times.size;
+  document.getElementById('selPrice').textContent  = count ? '¥' + (totalFen / 100) : '¥0';
+
+  // Highlight headers
+  ALL_IDS.forEach(c => {
+    const avail  = ALL_TIMES.filter(t => {
+      const cell = document.getElementById(`slot_${c}_${t.replace(':','')}`);
+      return cell && !cell.classList.contains('closed') && !cell.classList.contains('booked');
+    });
+    const th = document.getElementById('ch_' + c);
+    if (th) th.classList.toggle('all-on', avail.length > 0 && avail.every(t => selected.has(c + '-' + t)));
+  });
+  ALL_TIMES.forEach(t => {
+    const avail  = ALL_IDS.filter(c => {
+      const cell = document.getElementById(`slot_${c}_${t.replace(':','')}`);
+      return cell && !cell.classList.contains('closed') && !cell.classList.contains('booked');
+    });
+    const td = document.getElementById('tl_' + t.replace(':',''));
+    if (td) td.classList.toggle('row-on', avail.length > 0 && avail.every(c => selected.has(c + '-' + t)));
+  });
+
+  updateTarget();
+}
+
+// ═══════════════════════════════════════════════════
+// 空位查询
+// ═══════════════════════════════════════════════════
+async function queryAvailability() {
+  const token = document.getElementById('token').value.trim();
+  if (!token) { log('er', '❌ 请先填入 Token 才能查询！'); return; }
+
+  const btn  = document.getElementById('queryBtn');
+  btn.textContent = '🔄 查询中...';
+  btn.classList.add('loading');
+
+  const date = fmt(targetDate());
+  log('inf', `🔍 查询 ${date} 场地开放状态...`);
+
+  // 尝试多种常见接口路径
+  const tryPaths = [
+    '/service/appointment/appointment/phone/getBookingByDate',
+    '/service/appointment/appointment/phone/getNodeBookingList',
+    '/service/appointment/appointment/phone/getBookingInfo',
+  ];
+
+  let success = false;
+  for (const path of tryPaths) {
+    try {
+      // 先试 POST（加密body）
+      const payload = aesEncrypt({ appointmentDate: date, nodeid: VENUE_ID });
+      const res = await fetch(PROXY + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', token },
+        body: JSON.stringify({ item: payload })
+      });
+      const raw = await res.text();
+      if (raw.trimStart().startsWith('<')) continue; // HTML 重定向，跳过
+
+      let data = {};
+      try { data = JSON.parse(raw); } catch(_) {}
+      log('inf', `[${path}] ${res.status} → ${raw.substring(0, 120)}`);
+
+      if (data.code === '200' || data.success === true || data.data) {
+        parseAvailability(data, date);
+        success = true;
+        break;
+      }
+    } catch(e) { /* try next */ }
+  }
+
+  if (!success) {
+    log('wn', '⚠️ 自动查询未成功（接口路径未知）。将格子全部显示为可选，以实际抢场结果为准。');
+    log('wn', '如需准确空位，请在企业微信抓包「查看日期」接口路径后手动告知。');
+  }
+
+  btn.textContent = '🔍 查询空位';
+  btn.classList.remove('loading');
+}
+
+function parseAvailability(data, date) {
+  // 尝试从常见响应格式中解析已满/不开放的格子
+  // 格式示例: data.data = [{nodeid, timeList:[{time, status}]}]
+  const list = data.data || data.result || data.list || [];
+  if (!Array.isArray(list) || list.length === 0) {
+    log('wn', '查询返回数据为空或格式未知，无法解析空位');
+    return;
+  }
+
+  let closedCount = 0, bookedCount = 0;
+  list.forEach(node => {
+    const courtEntry = Object.entries(COURTS).find(([,id]) => id === node.nodeid);
+    if (!courtEntry) return;
+    const court = courtEntry[0];
+    const times = node.timeList || node.bookingList || [];
+    times.forEach(slot => {
+      const time = slot.time || slot.startTime;
+      if (!time || !SLOT_IDX.hasOwnProperty(time)) return;
+      const tid  = time.replace(':', '');
+      const cell = document.getElementById(`slot_${court}_${tid}`);
+      if (!cell) return;
+      const status = String(slot.status || slot.bookingStatus || '0');
+      if (status === '1' || status === 'booked' || status === 'full') {
+        cell.classList.remove('on', 'cheap', 'exp', 'closed');
+        cell.classList.add('booked');
+        cell.textContent = '';
+        selected.delete(court + '-' + time);
+        bookedSet.add(court + '-' + time);
+        bookedCount++;
+      } else if (status === '2' || status === 'closed' || status === 'disable') {
+        cell.classList.remove('on', 'cheap', 'exp', 'booked');
+        cell.classList.add('closed');
+        cell.textContent = '';
+        selected.delete(court + '-' + time);
+        closedSet.add(court + '-' + time);
+        closedCount++;
+      }
+    });
+  });
+  updateSummary();
+  log('ok', `✅ 解析完成：${closedCount} 格不开放，${bookedCount} 格已满，其余可预约`);
+}
+
+// ═══════════════════════════════════════════════════
+// 辅助函数
+// ═══════════════════════════════════════════════════
+const p2  = n => String(n).padStart(2, '0');
+const fmt = d => `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+function targetDate() {
+  const d = new Date(); d.setDate(d.getDate() + S.dayOffset); return d;
+}
+
+function setDay(n) {
+  S.dayOffset = n;
+  const offsets = [0,1,2];
+  [1,2,3].forEach((i,idx) => document.getElementById('d'+i).classList.toggle('on', offsets[idx]===n));
+  // 清除查询结果（新日期未查询）
+  bookedSet.clear(); closedSet.clear();
+  ALL_TIMES.forEach(t => ALL_IDS.forEach(c => {
+    const cell = document.getElementById(`slot_${c}_${t.replace(':','')}`);
+    if (!cell) return;
+    cell.classList.remove('booked','closed');
+    const fen = slotPrice(n, t);
+    cell.dataset.fen = fen;
+    cell.classList.remove('cheap','exp');
+    if (!cell.classList.contains('on'))
+      cell.classList.add(fen===1000?'cheap':'exp');
+    if (!cell.classList.contains('on'))
+      cell.textContent = fen===1000?'10':'40';
+  }));
+  updateSummary();
+  updateTarget();
+}
+
+function initDayLabels() {
+  [0,1,2].forEach((offset, idx) => {
+    const d = new Date(); d.setDate(d.getDate() + offset);
+    document.getElementById('d'+(idx+1)+'lbl').textContent =
+      `${p2(d.getMonth()+1)}/${p2(d.getDate())} 周${WEEKDAYS[d.getDay()]}`;
+  });
+}
+
+function pickPeople(n) {
+  S.people = n;
+  [3,4,5].forEach(i => document.getElementById('p'+i).classList.toggle('on', i===n));
+}
+
+function updateTarget() {
+  const d      = targetDate();
+  const cnt    = selected.size;
+  const courts = new Set([...selected].map(k => k.split(/-(.+)/)[0]));
+  const times  = new Set([...selected].map(k => k.split(/-(.+)/)[1]));
+  document.getElementById('targetTxt').innerHTML = cnt
+    ? `抢 <b>${fmt(d)}</b>（+${S.dayOffset}）· <b>${courts.size}</b>个场 · <b>${times.size}</b>个时段`
+    : `抢 <b>${fmt(d)}</b>（+${S.dayOffset}）· 请选格子或先查询空位`;
+}
+
+// ═══════════════════════════════════════════════════
+// 倒计时 + WakeLock + visibilitychange
+// ═══════════════════════════════════════════════════
+let wakeLock = null;
+
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    document.getElementById('cdWake').textContent = '🔆 屏幕常亮已锁定';
+    wakeLock.addEventListener('release', () => {
+      document.getElementById('cdWake').textContent = '';
+      wakeLock = null;
+    });
+  } catch(e) {
+    document.getElementById('cdWake').textContent = '⚠️ 请手动保持屏幕亮起';
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  document.getElementById('cdWake').textContent = '';
+}
+
+// 页面重新可见时：补检查是否错过了触发时间
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  // 重新检查是否应触发
+  const now    = new Date();
+  const parts  = document.getElementById('openTime').value.split(':');
+  const lead   = parseInt(document.getElementById('leadMs').value) || 0;
+  const target = new Date();
+  target.setHours(+parts[0], +parts[1], 0, 0);
+  // 如果当前时间已经过了目标时间（30秒内），且已武装，补发
+  const diff = target - now - lead;
+  if (diff <= 0 && diff > -30000 && S.armed && !S.firing) {
+    log('wn', '📱 屏幕唤醒后补发（错过不超过30秒）');
+    S.armed = false; S.firing = true;
+    document.getElementById('armBtn').textContent = '🚀 启动定时抢场';
+    document.getElementById('armBtn').className   = 'btn-go';
+    fireBooking().finally(() => { S.firing = false; });
+  }
+  // 重新获取 WakeLock（锁屏后会自动释放）
+  if (S.armed && !wakeLock) acquireWakeLock();
+  // 立刻 tick 一次，刷新倒计时
+  tick();
+});
+
+function startTick() {
+  if (S.tick) clearInterval(S.tick);
+  S.tick = setInterval(tick, 500); // 500ms 足够精确且省电
+  tick();
+}
+
+function tick() {
+  const now    = new Date();
+  const parts  = document.getElementById('openTime').value.split(':');
+  const lead   = parseInt(document.getElementById('leadMs').value) || 0;
+  const target = new Date();
+  target.setHours(+parts[0], +parts[1], 0, 0);
+  if (now >= target) target.setDate(target.getDate() + 1);
+
+  const diff = target - now - lead;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+
+  const numEl = document.getElementById('cdNum');
+  const lblEl = document.getElementById('cdLbl');
+  const box   = document.getElementById('cdBox');
+
+  document.getElementById('barFill').style.width =
+    Math.max(0, 100 - diff / 864000 * 100) + '%';
+  document.getElementById('cdSub').textContent =
+    `目标: ${fmt(targetDate())} 周${WEEKDAYS[targetDate().getDay()]}`;
+
+  if (diff <= 0 && diff > -60000) {
+    // 在目标时间前后60秒内触发
+    numEl.textContent = '🔥 开抢！'; numEl.className = 'cd-num g';
+    lblEl.textContent = '正在发送请求...';
+    if (S.armed && !S.firing) {
+      S.armed = false; S.firing = true;
+      document.getElementById('armBtn').textContent = '🚀 启动定时抢场';
+      document.getElementById('armBtn').className   = 'btn-go';
+      releaseWakeLock();
+      fireBooking().finally(() => { S.firing = false; });
+    }
+    return;
+  } else if (diff <= 0) {
+    // 超过60秒，可能是第二天的计时了，重置
+    numEl.textContent = `${p2(h)}:${p2(m)}:${p2(s)}`;
+    numEl.className   = 'cd-num';
+    lblEl.textContent = '距离开放还有';
+    box.className     = 'cd-box';
+    return;
+  }
+
+  numEl.textContent = `${p2(h)}:${p2(m)}:${p2(s)}`;
+  if (diff < 60000) {
+    numEl.className = 'cd-num w'; lblEl.textContent = '⚡ 即将开放！'; box.className = 'cd-box soon';
+  } else if (diff < 300000) {
+    numEl.className = 'cd-num w'; lblEl.textContent = '距离开放还有'; box.className = 'cd-box live';
+  } else {
+    numEl.className = 'cd-num';
+    lblEl.textContent = S.armed ? '⏳ 已武装，等待开放' : '距离开放还有';
+    box.className = S.armed ? 'cd-box live' : 'cd-box';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// 启动 / 取消
+// ═══════════════════════════════════════════════════
+function toggleArm() {
+  if (!S.armed) {
+    if (!document.getElementById('token').value.trim()) { log('er','❌ 请先填入 Token！'); return; }
+    if (!selected.size) { log('er','❌ 请在格子里选至少一格！'); return; }
+  }
+  S.armed = !S.armed;
+  const btn = document.getElementById('armBtn');
+  if (S.armed) {
+    const p = document.getElementById('openTime').value;
+    btn.textContent = '🔴 已武装 — 点击取消'; btn.className = 'btn-go disarm';
+    acquireWakeLock();
+    log('ok', `✅ 定时已启动！将在 ${p} 自动并发抢场`);
+    log('wn', `已选 ${selected.size} 格，涉及 ${new Set([...selected].map(k=>k.split(/-(.+)/)[0])).size} 个场地`);
+    log('wn', '收到成功提示后立刻完成验证码+支付');
+  } else {
+    btn.textContent = '🚀 启动定时抢场'; btn.className = 'btn-go';
+    releaseWakeLock();
+    log('inf', '已取消定时');
+  }
+}
+
+async function fireNow() {
+  if (S.firing) { log('wn','正在发送中...'); return; }
+  log('wn','⚡ 立即测试（不等7:30）');
+  S.firing = true;
+  await fireBooking().finally(() => { S.firing = false; });
+}
+
+// ═══════════════════════════════════════════════════
+// 核心：按场分组并发预约
+// ═══════════════════════════════════════════════════
+async function fireBooking() {
+  const token = document.getElementById('token').value.trim();
+  if (!token)         { log('er','❌ Token 为空！'); return; }
+  if (!selected.size) { log('er','❌ 请在格子里选至少一格！'); return; }
+
+  const date     = fmt(targetDate());
+  const nodeList = ALL_IDS.map(k => ({sitename: k+'号场', nodeid: COURTS[k]}));
+
+  // 按场地分组：{courtNum: [{time, fen}, ...]}
+  const byCourt = {};
+  for (const key of selected) {
+    const dash  = key.indexOf('-');
+    const court = key.slice(0, dash);
+    const time  = key.slice(dash + 1);
+    const cell  = document.getElementById(`slot_${court}_${time.replace(':','')}`);
+    const fen   = cell ? parseInt(cell.dataset.fen || '4000') : 4000;
+    if (!byCourt[court]) byCourt[court] = [];
+    byCourt[court].push({ time, fen });
+  }
+
+  const courtList = Object.keys(byCourt);
+  log('inf', `📅 ${date}（+${S.dayOffset}）  👥 ${S.people}人  🏟️ 场地: ${courtList.join(' ')}号`);
+  log('inf', `🚀 并发发出 ${courtList.length} 个请求...`);
+
+  const tasks = courtList.map(courtKey => {
+    const slots    = byCourt[courtKey].sort((a,b) => a.time.localeCompare(b.time));
+    const times    = slots.map(s => s.time);
+    const totalFen = slots.reduce((sum, s) => sum + s.fen, 0);
+    const courtIdx = ALL_IDS.indexOf(courtKey);
+    const coords   = times.map(t => `${courtIdx}-${SLOT_IDX[t]}`);
+    log('inf', `  [${courtKey}号] ${times.join(' ')} coords:${coords.join(',')} ¥${totalFen/100}`);
+    const body = {
+      nodeList,
+      payprice:        String(totalFen),
+      isLastDay:       false,
+      appointmentDate: date,
+      timeList:        TIME_LIST,
+      coordinatesList: coords,
+      booktype:        2,
+      nodeid:          VENUE_ID,
+      childrennum:     String(S.people),
+      followList:      [],
+      txamt:           String(totalFen),
+      payway:          '77'
+    };
+    return sendOne(token, aesEncrypt(body), courtKey);
+  });
+
+  const results = await Promise.allSettled(tasks);
+  let anyOk = false;
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value.ok) {
+      log('ok', `🎉🎉 ${courtList[i]}号场 预约成功！快去App完成验证码和支付！`);
+      document.getElementById('cdBox').className = 'cd-box live';
+      anyOk = true;
+    }
+  });
+  if (!anyOk)
+    log('wn', '汇总: ' + results.map((r,i) =>
+      `${courtList[i]}:${r.status==='fulfilled' ? r.value.msg : '网络异常'}`
+    ).join(' | '));
+}
+
+async function sendOne(token, encrypted, label) {
+  try {
+    const t0  = Date.now();
+    const res = await fetch(PROXY + API_BOOK, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', token },
+      body:    JSON.stringify({ item: encrypted })
+    });
+    const ms  = Date.now() - t0;
+    const raw = await res.text();
+    if (raw.trimStart().startsWith('<')) {
+      log('er', `[${label}号] ⚠️ 服务器返回HTML（IP限制/token失效）${res.status} (${ms}ms)`);
+      return { ok: false, msg: 'HTML响应' };
+    }
+    let data = {};
+    try { data = JSON.parse(raw); } catch(_) {}
+    log('inf', `[${label}号] HTTP ${res.status} (${ms}ms) → ${raw.substring(0, 100)}`);
+    const ok = data.success === true || data.code === '200' || data.code === 200
+             || (typeof data.msg === 'string' && /成功/.test(data.msg));
+    return { ok, msg: data.message || data.msg || raw.substring(0, 60) };
+  } catch(e) {
+    log('er', `[${label}号] ❌ ${e.message}`);
+    return { ok: false, msg: e.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// 日志
+// ═══════════════════════════════════════════════════
+function log(type, msg) {
+  const el  = document.getElementById('log');
+  const now = new Date();
+  const ts  = `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
+  const div = document.createElement('div');
+  div.className   = type;
+  div.textContent = `[${ts}] ${msg}`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  if (el.children.length > 150) el.removeChild(el.firstChild);
+}
+
+// ═══════════════════════════════════════════════════
+// 初始化
+// ═══════════════════════════════════════════════════
+(function init() {
+  buildGrid();
+  initDayLabels();
+  startTick();
+  updateTarget();
+  updateSummary();
+
+  const saved = localStorage.getItem('cugb_token');
+  if (saved) document.getElementById('token').value = saved;
+  document.getElementById('token').addEventListener('blur', function() {
+    if (this.value.trim()) localStorage.setItem('cugb_token', this.value.trim());
+  });
+
+  log('inf', 'v5.0 ✓  可视化格子 | 双档定价 | WakeLock | 空位查询 | 默认后天');
+  log('inf', '📋 步骤: ① 填Token → ② 查询空位 → ③ 选格子 → ④ 启动定时');
+})();
+</script>
+</body>
+</html>
