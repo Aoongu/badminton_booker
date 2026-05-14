@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏸 羽毛球抢场神器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+:root{
+  --bg:#07101f;--s1:#0f1d30;--s2:#162540;
+  --acc:#3b82f6;--acc2:#60a5fa;
+  --ok:#10b981;--warn:#f59e0b;--err:#ef4444;
+  --t1:#f1f5f9;--t2:#94a3b8;--bd:#1e2d45;
+  --glow:0 0 20px rgba(59,130,246,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;padding-bottom:70px}
+.hdr{background:linear-gradient(135deg,#0a1628,#1a3a5c);padding:20px 18px 16px;border-bottom:1px solid var(--bd);position:relative;overflow:hidden}
+.hdr::after{content:'🏸';position:absolute;right:14px;top:14px;font-size:44px;opacity:.13}
+.hdr h1{font-size:19px;font-weight:900;letter-spacing:-.5px}
+.hdr h1 span{color:var(--acc2)}
+.hdr p{font-size:11px;color:var(--t2);margin-top:3px}
+.cd-box{background:var(--s1);border:1px solid var(--bd);border-radius:14px;margin:12px 14px;padding:16px;text-align:center;transition:all .3s}
+.cd-box.live{border-color:var(--acc);box-shadow:var(--glow)}
+.cd-box.soon{border-color:var(--warn);box-shadow:0 0 18px rgba(245,158,11,.35);animation:pulse .6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.cd-lbl{font-size:10px;color:var(--t2);letter-spacing:1.5px;margin-bottom:6px}
+.cd-num{font-size:42px;font-weight:900;letter-spacing:-3px;color:var(--acc2);font-variant-numeric:tabular-nums;line-height:1}
+.cd-num.w{color:var(--warn)}.cd-num.g{color:var(--ok)}
+.cd-sub{font-size:11px;color:var(--t2);margin-top:5px}
+.bar{height:3px;background:var(--bd);border-radius:2px;margin:10px 0 0;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:2px;transition:width 1s linear}
+.target{display:flex;align-items:center;gap:8px;margin:0 14px 8px;padding:9px 13px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;font-size:12px;color:var(--t2)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--acc);flex-shrink:0;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+.target b{color:var(--t1)}
+.card{margin:8px 14px;background:var(--s1);border:1px solid var(--bd);border-radius:13px;overflow:hidden}
+.card-hdr{padding:9px 14px;font-size:11px;font-weight:700;color:var(--t2);letter-spacing:1px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.row{padding:11px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.row:last-child{border-bottom:none}
+.row-label{font-size:13px;font-weight:500}
+.row-hint{font-size:10px;color:var(--t2);margin-top:2px}
+input[type=time],input[type=number],textarea{background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--t1);padding:7px 10px;font-family:inherit;font-size:12px;outline:none;transition:border .2s}
+input:focus,textarea:focus{border-color:var(--acc)}
+textarea{resize:none;width:100%;margin-top:7px;font-size:10px;line-height:1.6}
+.day-row{display:flex;gap:6px;padding:8px 14px 12px}
+.day-btn{flex:1;padding:9px 4px;border-radius:9px;border:2px solid var(--bd);background:var(--s2);color:var(--t2);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.5}
+.day-btn small{display:block;font-size:9px;font-weight:400;opacity:.7;margin-top:1px}
+.day-btn.on{border-color:var(--acc);background:rgba(59,130,246,.15);color:var(--acc2)}
+.day-btn.on small{opacity:1}
+.people{display:flex;gap:7px;padding:10px 14px}
+.p-btn{flex:1;padding:11px;border-radius:8px;border:2px solid var(--bd);background:var(--s2);color:var(--t2);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;text-align:center}
+.p-btn.on{border-color:var(--acc);background:rgba(59,130,246,.12);color:var(--t1)}
+.presets{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 10px}
+.preset-btn{padding:5px 10px;border-radius:20px;border:1px solid var(--bd);background:var(--s2);color:var(--t2);font-family:inherit;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.preset-btn:active{background:rgba(59,130,246,.15);border-color:var(--acc);color:var(--acc2)}
+.preset-btn.danger{border-color:rgba(239,68,68,.3);color:var(--err)}
+.grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 14px 10px}
+.booking-grid{border-collapse:separate;border-spacing:3px}
+.booking-grid thead th{background:var(--s2);color:var(--t2);font-size:10px;font-weight:700;padding:6px 3px;border-radius:6px;text-align:center;cursor:pointer;min-width:34px;width:34px;user-select:none;transition:all .15s}
+.booking-grid thead th:hover{background:rgba(59,130,246,.2);color:var(--acc2)}
+.booking-grid thead th.all-on{background:var(--acc);color:#fff}
+th.th-time{min-width:48px;width:48px;background:transparent !important;cursor:default;font-size:9px;color:var(--t2)}
+.time-label{font-size:10px;color:var(--t2);text-align:right;padding:5px 6px 5px 0;cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s;border-radius:5px}
+.time-label:hover{color:var(--acc2)}
+.time-label.row-on{color:var(--acc2);font-weight:700}
+.slot{width:34px;height:34px;border-radius:6px;background:var(--s2);border:1px solid var(--bd);cursor:pointer;transition:all .12s;position:relative;user-select:none}
+.slot:active{transform:scale(.88)}
+.slot.on{background:var(--acc);border-color:var(--acc);box-shadow:0 0 7px rgba(59,130,246,.45)}
+.slot.on::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:900}
+.summary{padding:8px 14px;font-size:11px;color:var(--t2);display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--bd)}
+.summary b{color:var(--acc2)}
+.summary .price{color:var(--ok);font-weight:700;font-size:13px}
+.btn-go{display:block;width:calc(100% - 28px);margin:10px 14px;padding:15px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:13px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;box-shadow:0 4px 15px rgba(59,130,246,.3)}
+.btn-go:active{transform:scale(.98)}
+.btn-go.disarm{background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 4px 15px rgba(239,68,68,.3)}
+.btn-test{display:block;width:calc(100% - 28px);margin:0 14px 10px;padding:12px;background:transparent;border:1px solid var(--bd);border-radius:13px;color:var(--t2);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;text-align:center}
+.btn-test:active{background:var(--s2)}
+.logbox{margin:8px 14px;background:#040810;border:1px solid var(--bd);border-radius:11px;padding:11px;font-family:'Courier New',monospace;font-size:10px;line-height:1.9;max-height:200px;overflow-y:auto;color:#475569}
+.logbox .ok{color:var(--ok)}.logbox .er{color:var(--err)}.logbox .inf{color:var(--acc2)}.logbox .wn{color:var(--warn)}
+.notice{margin:0 14px 8px;padding:10px 12px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:9px;font-size:11px;color:#fbbf24;line-height:1.7}
+.notice b{display:block;margin-bottom:3px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>🏸 羽毛球<span>抢场神器</span></h1>
+  <p>中国地质大学（北京）· 智能定时预约 v4.0 · 可视化选场</p>
+</div>
+
+<div class="cd-box" id="cdBox">
+  <div class="cd-lbl" id="cdLbl">距离开放还有</div>
+  <div class="cd-num" id="cdNum">--:--:--</div>
+  <div class="cd-sub" id="cdSub">计算中...</div>
+  <div class="bar"><div class="bar-fill" id="barFill" style="width:0"></div></div>
+</div>
+
+<div class="target"><div class="dot"></div><span id="targetTxt">请在格子里选场地和时间</span></div>
+
+<div class="card">
+  <div class="card-hdr"><span>📅 预约配置</span></div>
+  <div style="padding:7px 14px 3px;font-size:10px;color:var(--t2)">预约哪天（仅支持 +1 / +2 / +3 天）</div>
+  <div class="day-row">
+    <button class="day-btn" id="d1" onclick="setDay(1)">明天<small id="d1lbl"></small></button>
+    <button class="day-btn on" id="d2" onclick="setDay(2)">后天<small id="d2lbl"></small></button>
+    <button class="day-btn" id="d3" onclick="setDay(3)">大后天<small id="d3lbl"></small></button>
+  </div>
+  <div class="row">
+    <div><div class="row-label">开放时间</div><div class="row-hint">到点自动并发发请求</div></div>
+    <input type="time" id="openTime" value="07:30" style="width:100px" oninput="startTick()">
+  </div>
+  <div class="row">
+    <div><div class="row-label">提前触发</div><div class="row-hint">补偿网络延迟 ms</div></div>
+    <input type="number" id="leadMs" value="200" min="0" max="3000" style="width:80px;text-align:center">
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr">
+    <span>🏟️ 选择场地 × 时间</span>
+    <span style="font-size:9px;font-weight:400">点时间行=全场 · 点场地列=全天</span>
+  </div>
+  <div class="presets">
+    <button class="preset-btn" onclick="quickSelect('09:00','12:00')">🌅 上午 09-12</button>
+    <button class="preset-btn" onclick="quickSelect('12:00','14:00')">☀️ 中午 12-14</button>
+    <button class="preset-btn" onclick="quickSelect('14:00','18:00')">🏸 下午 14-18</button>
+    <button class="preset-btn" onclick="quickSelect('18:00','22:00')">🌙 晚上 18-22</button>
+    <button class="preset-btn" onclick="quickSelect('09:00','22:00')">全天全场</button>
+    <button class="preset-btn danger" onclick="clearAll()">✕ 清空</button>
+  </div>
+  <div class="grid-wrap">
+    <table class="booking-grid" id="bookingGrid">
+      <thead><tr id="gridHead"></tr></thead>
+      <tbody id="gridBody"></tbody>
+    </table>
+  </div>
+  <div class="summary">
+    <span>已选 <b id="selCount">0</b> 格 · <b id="selCourts">0</b> 场 × <b id="selTimes">0</b> 段</span>
+    <span class="price" id="selPrice">¥0</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr"><span>👥 同行人数</span></div>
+  <div class="people">
+    <button class="p-btn" id="p3" onclick="pickPeople(3)">3人</button>
+    <button class="p-btn" id="p4" onclick="pickPeople(4)">4人</button>
+    <button class="p-btn on" id="p5" onclick="pickPeople(5)">5人</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr"><span>🔑 身份令牌 Token</span></div>
+  <div class="row" style="flex-direction:column;align-items:flex-start">
+    <div style="font-size:11px;color:var(--t2)">企业微信抓包 → 找请求头 token 字段 · 自动保存</div>
+    <textarea id="token" rows="4" placeholder="粘贴 token..."></textarea>
+  </div>
+</div>
+
+<div class="notice">
+  <b>⚠️ 使用流程</b>
+  ① 填 Token → 选日期 → 在格子里点选（时间行/场地列/单格均可）<br>
+  ② 启动定时 → 7:30 自动对每个选中场地并发发请求<br>
+  ③ 收到成功提示后立刻：<b>滑动验证码</b> + <b>支付密码</b><br>
+  ④ 价格 ¥40/小时/场（按场计费，与人数无关）
+</div>
+
+<button class="btn-go" id="armBtn" onclick="toggleArm()">🚀 启动定时抢场</button>
+<button class="btn-test" onclick="fireNow()">⚡ 立即测试（不等7:30）</button>
+
+<div class="card">
+  <div class="card-hdr"><span>📋 运行日志</span></div>
+  <div class="logbox" id="log"><span style="color:#334155">等待操作...</span></div>
+</div>
+
+<script>
+const COURTS={'1':'890407839460499456','2':'897319168721035264','3':'897319216791953408','4':'897319676093407232','5':'897319852216426496','6':'897320033116758016','7':'897320475481612288','8':'897320564409245696','9':'897321839163088896','10':'897321924424900608'};
+const ALL_IDS=Object.keys(COURTS);
+const VENUE_ID='889772856316272640';
+const PROXY='https://autumn-water-61ca.1713885931.workers.dev';
+const API='/service/appointment/appointment/phone/createBookingBytime';
+const WEEKDAYS=['日','一','二','三','四','五','六'];
+
+const ALL_TIMES=['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+const SLOT_IDX={'09:00':0,'10:00':1,'11:00':2,'12:00':3,'13:00':4,'14:00':5,'15:00':6,'16:00':7,'17:00':8,'18:00':9,'19:00':10,'20:00':11,'21:00':12};
+const TIME_LIST=ALL_TIMES.map(t=>({time:t,status:'0'})).concat([{time:'22:00',status:'1'}]);
+const PRICE_PER_SLOT=4000;
+
+const AES_KEY=CryptoJS.enc.Utf8.parse('0102030405060708');
+const AES_IV=CryptoJS.enc.Utf8.parse('0102030405060708');
+function aesEncrypt(obj){
+  const plain=CryptoJS.enc.Utf8.parse(JSON.stringify(obj));
+  const enc=CryptoJS.AES.encrypt(plain,AES_KEY,{iv:AES_IV,mode:CryptoJS.mode.CBC,padding:CryptoJS.pad.Pkcs7});
+  return enc.ciphertext.toString().toUpperCase();
+}
+
+const S={people:5,dayOffset:2,armed:false,firing:false,tick:null};
+const selected=new Set();
+
+function buildGrid(){
+  const head=document.getElementById('gridHead');
+  const body=document.getElementById('gridBody');
+  let hHTML='<th class="th-time"></th>';
+  ALL_IDS.forEach(c=>{hHTML+=`<th id="ch_${c}" onclick="toggleCourt('${c}')">${c}号</th>`;});
+  head.innerHTML=hHTML;
+  ALL_TIMES.forEach(t=>{
+    const tid=t.replace(':','');
+    const tr=document.createElement('tr');
+    let rHTML=`<td class="time-label" id="tl_${tid}" onclick="toggleTime('${t}')">${t}</td>`;
+    ALL_IDS.forEach(c=>{rHTML+=`<td class="slot" id="slot_${c}_${tid}" onclick="toggleCell('${c}','${t}')"></td>`;});
+    tr.innerHTML=rHTML;
+    body.appendChild(tr);
+  });
+}
+
+function toggleCell(court,time,forceState){
+  const key=court+'-'+time;
+  const cell=document.getElementById('slot_'+court+'_'+time.replace(':',''));
+  let isOn;
+  if(forceState===true){selected.add(key);isOn=true;}
+  else if(forceState===false){selected.delete(key);isOn=false;}
+  else if(selected.has(key)){selected.delete(key);isOn=false;}
+  else{selected.add(key);isOn=true;}
+  if(cell)cell.classList.toggle('on',isOn);
+  updateSummary();
+}
+
+function toggleTime(time){
+  const allOn=ALL_IDS.every(c=>selected.has(c+'-'+time));
+  ALL_IDS.forEach(c=>toggleCell(c,time,!allOn));
+}
+
+function toggleCourt(court){
+  const allOn=ALL_TIMES.every(t=>selected.has(court+'-'+t));
+  ALL_TIMES.forEach(t=>toggleCell(court,t,!allOn));
+}
+
+function quickSelect(startTime,endTime){
+  const range=ALL_TIMES.filter(t=>t>=startTime&&t<endTime);
+  const allOn=range.every(t=>ALL_IDS.every(c=>selected.has(c+'-'+t)));
+  range.forEach(t=>ALL_IDS.forEach(c=>toggleCell(c,t,!allOn)));
+}
+
+function clearAll(){
+  [...selected].forEach(key=>{
+    selected.delete(key);
+    const [court,time]=key.split(/-(.+)/);
+    const cell=document.getElementById('slot_'+court+'_'+time.replace(':',''));
+    if(cell)cell.classList.remove('on');
+  });
+  updateSummary();
+}
+
+function updateSummary(){
+  const courts=new Set([...selected].map(k=>k.split(/-(.+)/)[0]));
+  const times=new Set([...selected].map(k=>k.split(/-(.+)/)[1]));
+  const count=selected.size;
+  const price=count*PRICE_PER_SLOT/100;
+  document.getElementById('selCount').textContent=count;
+  document.getElementById('selCourts').textContent=courts.size;
+  document.getElementById('selTimes').textContent=times.size;
+  document.getElementById('selPrice').textContent=count?'¥'+price:'¥0';
+  ALL_IDS.forEach(c=>{
+    const th=document.getElementById('ch_'+c);
+    if(th)th.classList.toggle('all-on',ALL_TIMES.every(t=>selected.has(c+'-'+t)));
+  });
+  ALL_TIMES.forEach(t=>{
+    const td=document.getElementById('tl_'+t.replace(':',''));
+    if(td)td.classList.toggle('row-on',ALL_IDS.every(c=>selected.has(c+'-'+t)));
+  });
+  updateTarget();
+}
+
+const p2=n=>String(n).padStart(2,'0');
+const fmt=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+function targetDate(){const d=new Date();d.setDate(d.getDate()+S.dayOffset);return d;}
+
+function setDay(n){
+  S.dayOffset=n;
+  [1,2,3].forEach(i=>document.getElementById('d'+i).classList.toggle('on',i===n));
+  updateTarget();
+}
+
+function initDayLabels(){
+  [1,2,3].forEach(i=>{
+    const d=new Date();d.setDate(d.getDate()+i);
+    document.getElementById('d'+i+'lbl').textContent=`${p2(d.getMonth()+1)}/${p2(d.getDate())} 周${WEEKDAYS[d.getDay()]}`;
+  });
+}
+
+function pickPeople(n){
+  S.people=n;
+  [3,4,5].forEach(i=>document.getElementById('p'+i).classList.toggle('on',i===n));
+}
+
+function updateTarget(){
+  const d=targetDate();
+  const cnt=selected.size;
+  const courts=new Set([...selected].map(k=>k.split(/-(.+)/)[0]));
+  const times=new Set([...selected].map(k=>k.split(/-(.+)/)[1]));
+  document.getElementById('targetTxt').innerHTML=cnt
+    ?`抢 <b>${fmt(d)}</b>（+${S.dayOffset}）· <b>${courts.size}</b>个场 · <b>${times.size}</b>个时段`
+    :`抢 <b>${fmt(d)}</b>（+${S.dayOffset}）· 请在格子里选场地`;
+}
+
+function startTick(){
+  if(S.tick)clearInterval(S.tick);
+  S.tick=setInterval(tick,250);tick();
+}
+
+function tick(){
+  const now=new Date();
+  const parts=document.getElementById('openTime').value.split(':');
+  const lead=parseInt(document.getElementById('leadMs').value)||0;
+  const target=new Date();
+  target.setHours(+parts[0],+parts[1],0,0);
+  if(now>=target)target.setDate(target.getDate()+1);
+  const diff=target-now-lead;
+  const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+  const numEl=document.getElementById('cdNum'),lblEl=document.getElementById('cdLbl'),box=document.getElementById('cdBox');
+  document.getElementById('barFill').style.width=Math.max(0,100-diff/864000*100)+'%';
+  const d=targetDate();
+  document.getElementById('cdSub').textContent=`目标: ${fmt(d)} 周${WEEKDAYS[d.getDay()]}`;
+  if(diff<=0){
+    numEl.textContent='🔥 开抢！';numEl.className='cd-num g';lblEl.textContent='正在发送...';
+    if(S.armed&&!S.firing){S.armed=false;S.firing=true;document.getElementById('armBtn').textContent='🚀 启动定时抢场';document.getElementById('armBtn').className='btn-go';fireBooking().finally(()=>{S.firing=false;});}
+    return;
+  }
+  numEl.textContent=`${p2(h)}:${p2(m)}:${p2(s)}`;
+  if(diff<60000){numEl.className='cd-num w';lblEl.textContent='⚡ 即将开放！';box.className='cd-box soon';}
+  else if(diff<300000){numEl.className='cd-num w';lblEl.textContent='距离开放还有';box.className='cd-box live';}
+  else{numEl.className='cd-num';lblEl.textContent=S.armed?'⏳ 已武装，等待开放':'距离开放还有';box.className=S.armed?'cd-box live':'cd-box';}
+}
+
+function toggleArm(){
+  if(!S.armed){
+    if(!document.getElementById('token').value.trim()){log('er','❌ 请先填入 Token！');return;}
+    if(!selected.size){log('er','❌ 请在格子里选至少一格！');return;}
+  }
+  S.armed=!S.armed;
+  const btn=document.getElementById('armBtn');
+  if(S.armed){
+    const p=document.getElementById('openTime').value;
+    btn.textContent='🔴 已武装 — 点击取消';btn.className='btn-go disarm';
+    log('ok',`✅ 定时已启动！将在 ${p} 自动并发抢场`);
+    log('wn','请保持屏幕亮起，收到成功提示后立刻完成验证码+支付');
+  }else{btn.textContent='🚀 启动定时抢场';btn.className='btn-go';log('inf','已取消定时');}
+}
+
+async function fireNow(){if(S.firing){log('wn','正在发送中...');return;}log('wn','⚡ 立即测试（不等7:30）');S.firing=true;await fireBooking().finally(()=>{S.firing=false;});}
+
+async function fireBooking(){
+  const token=document.getElementById('token').value.trim();
+  if(!token){log('er','❌ Token 为空！');return;}
+  if(!selected.size){log('er','❌ 请在格子里选至少一格！');return;}
+  const date=fmt(targetDate());
+  const nodeList=ALL_IDS.map(k=>({sitename:k+'号场',nodeid:COURTS[k]}));
+  const byCourt={};
+  for(const key of selected){
+    const dash=key.indexOf('-');
+    const court=key.slice(0,dash),time=key.slice(dash+1);
+    if(!byCourt[court])byCourt[court]=[];
+    byCourt[court].push(time);
+  }
+  const courtList=Object.keys(byCourt);
+  log('inf',`📅 ${date}（+${S.dayOffset}）  👥 ${S.people}人  🏟️ ${courtList.join(' ')}号场`);
+  log('inf',`🚀 并发发出 ${courtList.length} 个请求...`);
+  const tasks=courtList.map(courtKey=>{
+    const times=byCourt[courtKey].sort();
+    const courtIdx=ALL_IDS.indexOf(courtKey);
+    const coords=times.map(t=>`${courtIdx}-${SLOT_IDX[t]}`);
+    const fen=times.length*PRICE_PER_SLOT;
+    log('inf',`  [${courtKey}号] ${times.join(' ')} → 坐标:${coords.join(',')} ¥${fen/100}`);
+    const body={nodeList,payprice:String(fen),isLastDay:false,appointmentDate:date,timeList:TIME_LIST,coordinatesList:coords,booktype:2,nodeid:VENUE_ID,childrennum:String(S.people),followList:[],txamt:String(fen),payway:'77'};
+    return sendOne(token,aesEncrypt(body),courtKey);
+  });
+  const results=await Promise.allSettled(tasks);
+  let anyOk=false;
+  results.forEach((r,i)=>{
+    if(r.status==='fulfilled'&&r.value.ok){log('ok',`🎉🎉 ${courtList[i]}号场 预约成功！快去App完成验证码和支付！`);document.getElementById('cdBox').className='cd-box live';anyOk=true;}
+  });
+  if(!anyOk){log('wn','汇总: '+results.map((r,i)=>`${courtList[i]}:${r.status==='fulfilled'?r.value.msg:'网络异常'}`).join(' | '));}
+}
+
+async function sendOne(token,encrypted,label){
+  try{
+    const t0=Date.now();
+    const res=await fetch(PROXY+API,{method:'POST',headers:{'Content-Type':'application/json',token},body:JSON.stringify({item:encrypted})});
+    const ms=Date.now()-t0;
+    const raw=await res.text();
+    if(raw.trimStart().startsWith('<')){log('er',`[${label}号] ⚠️ 返回HTML（IP限制/未登录）${res.status} (${ms}ms)`);return{ok:false,msg:'HTML响应'};}
+    let data={};try{data=JSON.parse(raw);}catch(_){}
+    log('inf',`[${label}号] HTTP ${res.status} (${ms}ms) → ${raw.substring(0,100)}`);
+    const ok=data.success===true||data.code==='200'||data.code===200||(typeof data.msg==='string'&&/成功/.test(data.msg));
+    return{ok,msg:data.message||data.msg||raw.substring(0,60)};
+  }catch(e){log('er',`[${label}号] ❌ ${e.message}`);return{ok:false,msg:e.message};}
+}
+
+function log(type,msg){
+  const el=document.getElementById('log');
+  const now=new Date();
+  const ts=`${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`;
+  const div=document.createElement('div');
+  div.className=type;div.textContent=`[${ts}] ${msg}`;
+  el.appendChild(div);el.scrollTop=el.scrollHeight;
+  if(el.children.length>120)el.removeChild(el.firstChild);
+}
+
+(function init(){
+  buildGrid();initDayLabels();startTick();updateTarget();updateSummary();
+  const saved=localStorage.getItem('cugb_token');
+  if(saved)document.getElementById('token').value=saved;
+  document.getElementById('token').addEventListener('blur',function(){if(this.value.trim())localStorage.setItem('cugb_token',this.value.trim());});
+  log('inf','v4.0 启动 ✓  可视化格子 | 按场¥40 | 09-22时段 | 默认后天');
+  log('inf','在格子里点击选场地+时间 → 启动定时');
+})();
+</script>
+</body>
+</html>
