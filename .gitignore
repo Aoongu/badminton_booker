@@ -1,0 +1,53 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vite
+
+# Temp analysis scripts
+_analyze_*.cjs
+_analyze_*.js
+_check_*.cjs
+_check_*.js
+_extract*.cjs
+_extract*.js
+_extracted_*
+_final_check*
+_fix_*
+_helper*
+_html_before_script*
+_new_script*
+_simulate_*
+_syntax_check*
+_transform*
+_verify*
+_*.html
+
+# Screenshots and images (not in public/)
+*.png
+*.jpg
+*.jpeg
+*.saz
+
+# Packet capture data
+*_extracted/
