@@ -25,6 +25,7 @@ dist-ssr
 .vite
 
 # Temp analysis scripts
+*.cjs
 _analyze_*.cjs
 _analyze_*.js
 _check_*.cjs
