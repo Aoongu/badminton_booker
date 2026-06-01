@@ -1,6 +1,6 @@
-# CUGB 羽毛球抢场神器 — 全栈项目
+# 羽毛球抢场神器 — 全栈项目
 
-中国地质大学（北京）羽毛球场地预约工具，包含前端 React 页面 + Express 后端 + Cloudflare Pages 部署。
+羽毛球场地预约工具，包含前端 React 页面 + Express 后端 + Cloudflare Pages 部署。
 
 > 纯 Cloudflare Worker 单文件版本请切换到 [`main`](https://github.com/Aoongu/badminton_booker/tree/main) 分支。
 
