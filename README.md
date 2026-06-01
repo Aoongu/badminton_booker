@@ -1,6 +1,6 @@
-# 🏸 CUGB 羽毛球抢场神器
+# 🏸 羽毛球抢场神器
 
-中国地质大学（北京）羽毛球场地预约工具，基于 Cloudflare Worker 实现。
+羽毛球场地预约工具，基于 Cloudflare Worker 实现。
 
 ## ✨ 功能特性
 
@@ -95,7 +95,7 @@ badmintonbooker_solo/
 - **运行环境**: Cloudflare Worker
 - **前端**: 原生 HTML/CSS/JavaScript
 - **加密**: CryptoJS (AES-128-CBC)
-- **目标**: 中国地质大学（北京）羽毛球预约系统
+- **目标**: 羽毛球预约系统
 
 ---
 
