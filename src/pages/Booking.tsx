@@ -9,13 +9,11 @@ import {
   checkBlackList,
   createGrabTask,
   getGrabTasks,
-  getNotifyConfig,
 } from '@/utils/api'
 import { showToast, ToastContainer } from '@/components/Toast'
 import CountdownFloat from '@/components/CountdownFloat'
 import LogPanel from '@/components/LogPanel'
 import ServerTaskPanel from '@/components/ServerTaskPanel'
-import NotifyConfig from '@/components/NotifyConfig'
 import TokenArea from '@/components/TokenArea'
 
 const VENUE_ID = '889772856316272640'
@@ -30,6 +28,20 @@ function formatDate(offset: number): string {
   return `${y}-${m}-${day}`
 }
 
+function getNextTarget(timeStr: string): { target: Date; bookingDate: string } {
+  const now = new Date()
+  const [h, m] = timeStr.split(':').map(Number)
+  const target = new Date(now)
+  target.setHours(h, m, 0, 0)
+  if (target.getTime() <= now.getTime()) {
+    target.setDate(target.getDate() + 1)
+  }
+  const y = target.getFullYear()
+  const mo = String(target.getMonth() + 1).padStart(2, '0')
+  const d = String(target.getDate()).padStart(2, '0')
+  return { target, bookingDate: `${y}-${mo}-${d}` }
+}
+
 function dateTabLabel(offset: number): string {
   const d = new Date()
   d.setDate(d.getDate() + offset)
@@ -37,6 +49,14 @@ function dateTabLabel(offset: number): string {
   const day = String(d.getDate()).padStart(2, '0')
   const wd = WEEKDAYS[d.getDay()]
   return `${m}/${day} 周${wd}`
+}
+
+function timeToRange(time: string): string {
+  if (time.includes('-')) {
+    return time.replace(/:00/g, '')
+  }
+  const h = parseInt(time.split(':')[0])
+  return `${h}-${h + 1}`
 }
 
 export default function Booking() {
@@ -75,7 +95,6 @@ export default function Booking() {
   const grabMode = useStore((s) => s.grabMode)
   const setGrabMode = useStore((s) => s.setGrabMode)
   const setServerTasks = useStore((s) => s.setServerTasks)
-  const setNotifyConfig = useStore((s) => s.setNotifyConfig)
 
   const [loading, setLoading] = useState(false)
   const [countdown, setCountdown] = useState('--:--:--.---')
@@ -317,9 +336,7 @@ export default function Booking() {
   const tick = useCallback(() => {
     if (!openTime) return
     const now = new Date()
-    const target = new Date(now)
-    const [h, m] = openTime.split(':').map(Number)
-    target.setHours(h, m, 0, 0)
+    const { target } = getNextTarget(openTime)
     const diff = target.getTime() - now.getTime() - leadMs
 
     if (diff <= 0 && armed && !firing && !bookingRef.current) {
@@ -331,8 +348,7 @@ export default function Booking() {
     const hh = String(Math.floor(totalSec / 3600)).padStart(2, '0')
     const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0')
     const ss = String(totalSec % 60).padStart(2, '0')
-    const ms = String(absDiff % 1000).padStart(3, '0')
-    setCountdown(`${hh}:${mm}:${ss}.${ms}`)
+    setCountdown(`${hh}:${mm}:${ss}`)
 
     if (diff <= 0) {
       setCountdownStatus('idle')
@@ -346,7 +362,7 @@ export default function Booking() {
   }, [openTime, leadMs, armed, firing, fireBooking])
 
   useEffect(() => {
-    if (armed) {
+    if (openTime) {
       tickRef.current = setInterval(tick, 200)
       tick()
     } else {
@@ -363,7 +379,7 @@ export default function Booking() {
         tickRef.current = null
       }
     }
-  }, [armed, tick])
+  }, [openTime, tick])
 
   useEffect(() => {
     if (!armed) return
@@ -390,9 +406,7 @@ export default function Booking() {
       if (!armed || firing || bookingRef.current) return
       if (!openTime) return
       const now = new Date()
-      const target = new Date(now)
-      const [h, m] = openTime.split(':').map(Number)
-      target.setHours(h, m, 0, 0)
+      const { target } = getNextTarget(openTime)
       const diff = target.getTime() - now.getTime() - leadMs
       if (diff <= 30000 && diff > -5000) {
         fireBooking()
@@ -402,26 +416,17 @@ export default function Booking() {
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [armed, firing, openTime, leadMs, fireBooking])
 
+  // Combined: fetch schedule on mount + dayOffset change, load server tasks on mount
+  const lastFetchRef = useRef<string>('')
   useEffect(() => {
+    const fetchKey = `${dayOffset}-${token || openid}`
+    if (lastFetchRef.current === fetchKey) return
+    lastFetchRef.current = fetchKey
     if (token || openid) {
       fetchSchedule()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
     if (openid) {
       refreshServerTasks()
-      getNotifyConfig(openid).then(res => {
-        setNotifyConfig(res.data || res)
-      }).catch(() => {})
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openid])
-
-  useEffect(() => {
-    if (token || openid) {
-      fetchSchedule()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayOffset])
@@ -552,7 +557,7 @@ export default function Booking() {
       }
     }
 
-    const bookingDate = formatDate(dayOffset)
+    const { bookingDate, target: targetDate } = getNextTarget(openTime)
     const targetTime = `${bookingDate}T${openTime}:00`
 
     try {
@@ -649,7 +654,7 @@ export default function Booking() {
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-[56px] bg-[#0f1d30] px-1 py-2 text-[#94a3b8]">
+                  <th className="sticky left-0 z-10 min-w-[90px] bg-[#0f1d30] px-1 py-2 text-[#94a3b8]">
                     时间
                   </th>
                   {scheduleData.courtOrder.map((court) => (
@@ -664,7 +669,7 @@ export default function Booking() {
                 </tr>
               </thead>
               <tbody>
-                {scheduleData.allTimes.map((time) => {
+                {scheduleData.times.map((time) => {
                   const sIdx = scheduleData.slotIdx[time]
                   const isClosed = scheduleData.timeList[sIdx]?.status === '1'
                   return (
@@ -677,7 +682,7 @@ export default function Booking() {
                         }`}
                         onClick={() => !isClosed && handleRowSelect(time)}
                       >
-                        {time}
+                        {timeToRange(time)}
                       </td>
                       {scheduleData.courtOrder.map((court) => {
                         const key = `${court}-${time}`
@@ -852,13 +857,12 @@ export default function Booking() {
               />
             </div>
           </div>
-          <NotifyConfig />
         </div>
       )}
 
       <CountdownFloat
         countdown={countdown}
-        label={armed ? `目标 ${openTime}` : '未武装'}
+        label={armed ? `目标 ${openTime}` : openTime ? `目标 ${openTime} (未武装)` : '未设置目标时间'}
         status={countdownStatus}
       />
 
