@@ -1,0 +1,8 @@
+node_modules
+dist
+src
+public
+.trae
+cloudflare-worker
+.git
+*.md
