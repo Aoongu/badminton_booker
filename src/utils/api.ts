@@ -186,18 +186,3 @@ Promise<any> {
   return res.json()
 }
 
-export async function saveNotifyConfig(data: { openid: string; serverchanKey: string }): // eslint-disable-next-line @typescript-eslint/no-explicit-any
-Promise<any> {
-  const res = await fetch('/api/notify-config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  })
-  return res.json()
-}
-
-export async function getNotifyConfig(openid: string): // eslint-disable-next-line @typescript-eslint/no-explicit-any
-Promise<any> {
-  const res = await fetch(`/api/notify-config?openid=${encodeURIComponent(openid)}`)
-  return res.json()
-}

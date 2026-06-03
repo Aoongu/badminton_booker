@@ -56,8 +56,6 @@ interface AppState {
   setGrabMode: (mode: 'browser' | 'server') => void
   serverTasks: Array<Record<string, unknown>>
   setServerTasks: (tasks: Array<Record<string, unknown>>) => void
-  notifyConfig: { serverchanKey: string; enabled: number } | null
-  setNotifyConfig: (config: { serverchanKey: string; enabled: number } | null) => void
 }
 
 const p2 = (n: number) => String(n).padStart(2, '0')
@@ -150,6 +148,4 @@ export const useStore = create<AppState>((set) => ({
   setGrabMode: (mode: 'browser' | 'server') => set({ grabMode: mode }),
   serverTasks: [],
   setServerTasks: (tasks: Array<Record<string, unknown>>) => set({ serverTasks: tasks }),
-  notifyConfig: null,
-  setNotifyConfig: (config: { serverchanKey: string; enabled: number } | null) => set({ notifyConfig: config }),
 }))
