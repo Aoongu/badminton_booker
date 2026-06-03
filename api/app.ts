@@ -5,7 +5,6 @@ import express, {
 } from 'express'
 import dotenv from 'dotenv'
 import grabTasksRouter from './routes/grab-tasks.js'
-import notifyConfigRouter from './routes/notify-config.js'
 
 dotenv.config()
 
@@ -58,7 +57,6 @@ app.get('/api/health', (req: Request, res: Response): void => {
 })
 
 app.use('/api/grab-tasks', grabTasksRouter)
-app.use('/api/notify-config', notifyConfigRouter)
 
 app.all('/api/*', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
