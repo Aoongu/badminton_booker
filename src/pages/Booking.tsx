@@ -285,7 +285,7 @@ export default function Booking() {
       const encrypted = aesEncrypt(body)
 
       promises.push(
-        fetch(`${import.meta.env.VITE_API_HOST || ''}/api/service/appointment/appointment/phone/createBookingBytime`, {
+        fetch(`${import.meta.env.PROD ? 'https://badmintonbooker-production.up.railway.app' : ''}/api/service/appointment/appointment/phone/createBookingBytime`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

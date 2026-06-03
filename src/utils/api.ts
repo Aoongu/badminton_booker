@@ -1,6 +1,8 @@
 import CryptoJS from 'crypto-js'
 
-const API_HOST = import.meta.env.VITE_API_HOST || ''
+const API_HOST = import.meta.env.PROD
+  ? 'https://badmintonbooker-production.up.railway.app'
+  : ''
 const BASE_URL = `${API_HOST}/api/service/appointment/appointment`
 const AES_KEY = CryptoJS.enc.Utf8.parse('0102030405060708')
 const AES_IV = CryptoJS.enc.Utf8.parse('0102030405060708')
