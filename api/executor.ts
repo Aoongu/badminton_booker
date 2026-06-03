@@ -1,6 +1,5 @@
 import { aesEncrypt, aesDecrypt } from './aes.js'
 import pool from './db.js'
-import { sendNotification, buildSuccessMessage, buildFailureMessage } from './notify.js'
 
 const WECHAT_UA = 'Mozilla/5.0 (Linux; Android 12; SM-G9910 Build/SP1A.210812.016; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/107.0.5304.141 Mobile Safari/537.36 XWEB/5235 MMWEBSDK/20230506 Mobile MicroMessenger/8.0.37.2380(0x2800253A) WeChat/arm64 Weixin NetType/WIFI Language/zh_CN ABI/arm64 miniProgram'
 const UPSTREAM_URL = 'https://bdtyg.cugb.edu.cn/service/appointment/appointment/phone/createBookingBytime'
@@ -147,8 +146,6 @@ export async function executeGrabTask(task: GrabTask): Promise<void> {
       JSON.stringify({ error: reason }),
       task.id,
     ])
-    const msg = buildFailureMessage({ booking_date: task.booking_date, cells: [], result: null, user_name: task.user_name }, reason)
-    await sendNotification(task.openid, msg.title, msg.desp)
     return
   }
 
@@ -187,26 +184,8 @@ export async function executeGrabTask(task: GrabTask): Promise<void> {
   ])
 
   if (overallStatus === 'success') {
-    const notifyCells = succeeded.map((r) => ({
-      court: r.sitename,
-      time: '',
-      price: 0,
-    }))
-    const msg = buildSuccessMessage({
-      booking_date: task.booking_date,
-      cells: notifyCells,
-      result: null,
-      user_name: task.user_name,
-    })
-    await sendNotification(task.openid, msg.title, msg.desp)
+    // Booking succeeded
   } else {
-    const reasons = failed.map((r) => `${r.sitename}: ${r.message}`).join('; ')
-    const msg = buildFailureMessage({
-      booking_date: task.booking_date,
-      cells: [],
-      result: null,
-      user_name: task.user_name,
-    }, reasons)
-    await sendNotification(task.openid, msg.title, msg.desp)
+    // Booking failed
   }
 }
