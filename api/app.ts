@@ -56,6 +56,10 @@ app.get('/api/health', (req: Request, res: Response): void => {
   })
 })
 
+app.get('/', (req: Request, res: Response): void => {
+  res.status(200).json({ status: 'ok' })
+})
+
 app.use('/api/grab-tasks', grabTasksRouter)
 
 app.all('/api/*', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
