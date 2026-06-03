@@ -1,0 +1,34 @@
+- [x] API 工具层 AES 加密/解密与 worker_v20 行为一致（相同输入产生相同加密输出）
+- [x] API 请求自动加密请求体为 `{"item":"..."}` 格式
+- [x] API 响应自动解密 `item` 字段并返回解析后的数据
+- [x] Token 过期时自动使用 openid 重新登录并重试请求
+- [x] 后端代理正确转发请求到 bdtyg.cugb.edu.cn，添加微信 UA、Origin、Referer、token Header
+- [x] 后端代理将前端 `x-token` Header 映射为上游 `token` Header
+- [x] 登录页支持粘贴加密字符串自动解密 openid 并登录
+- [x] 登录页支持直接输入 openid 登录
+- [x] 登录页支持手动输入 Token 登录
+- [x] 登录成功后 openid/token/userName 持久化到 localStorage
+- [x] 场地矩阵根据 nodeList 和 timeList 动态渲染（不硬编码场地列表）
+- [x] 场地矩阵正确显示价格（priceList）和状态（conflictList）
+- [x] 格子点击选择/取消选择功能正常
+- [x] 行选择（点击时段标签）功能正常
+- [x] 列选择（点击场地标题）功能正常
+- [x] 时段范围快速选择功能正常
+- [x] 日期切换（当日/明天/后天）功能正常，默认选中后天
+- [x] 预约流程完整：检查黑名单 → 提交预约
+- [x] 并发预约按场地分组发送，使用 Promise.allSettled
+- [x] 武装模式启动需已选格子 + 已填 Token
+- [x] 倒计时逻辑正确，考虑 lead time 提前量
+- [x] 倒计时到达时自动触发并发抢场
+- [x] WakeLock 在武装模式激活时请求，取消时释放
+- [x] 屏幕唤醒后 30 秒内补发抢场逻辑正常
+- [x] 可拖拽倒计时浮动组件拖拽功能正常
+- [x] 倒计时状态变化时颜色和样式正确（<1分钟警告闪烁，<5分钟活跃发光）
+- [x] Toast 通知正确显示成功/失败消息并自动消失
+- [x] 实时日志面板记录所有操作，按类型着色，150条上限
+- [x] Token 输入区域可折叠显示/隐藏
+- [x] 登出功能清除 token/openid/name
+- [x] 路由简化为 /login + /booking 两页设计，Booking 页内含可折叠 Token 区域
+- [x] 已删除 AutoGrab.tsx、Home.tsx、auth.ts 等废弃文件（cloudflare-worker/ 用户要求保留）
+- [x] TypeScript 编译无新增错误（仅存 pre-existing tailwind-merge 类型问题）
+- [x] ESLint 检查通过（0 errors，仅 Toast.tsx 有 1 个 react-refresh 警告）
