@@ -1,60 +1,72 @@
 import CryptoJS from 'crypto-js'
-import { useStore } from '@/store/useStore'
 
 const BASE_URL = '/api/service/appointment/appointment'
 const AES_KEY = CryptoJS.enc.Utf8.parse('0102030405060708')
 const AES_IV = CryptoJS.enc.Utf8.parse('0102030405060708')
 
-function encryptPayload(jsonStr: string): string {
-  const encrypted = CryptoJS.AES.encrypt(
-    CryptoJS.enc.Utf8.parse(jsonStr),
-    AES_KEY,
-    {
-      iv: AES_IV,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7,
-    }
-  )
-  return encrypted.ciphertext.toString().toUpperCase()
-}
-
-function decryptPayload(hexStr: string): string {
-  const hexParsed = CryptoJS.enc.Hex.parse(hexStr)
-  const base64Str = CryptoJS.enc.Base64.stringify(hexParsed)
-  const decrypted = CryptoJS.AES.decrypt(base64Str, AES_KEY, {
+export function aesEncrypt(obj: Record<string, unknown>): string {
+  const plain = CryptoJS.enc.Utf8.parse(JSON.stringify(obj))
+  const enc = CryptoJS.AES.encrypt(plain, AES_KEY, {
     iv: AES_IV,
     mode: CryptoJS.mode.CBC,
     padding: CryptoJS.pad.Pkcs7,
   })
-  return decrypted.toString(CryptoJS.enc.Utf8)
+  return enc.ciphertext.toString().toUpperCase()
+}
+
+export function aesDecrypt(hexStr: string): string {
+  const cipherParams = CryptoJS.lib.CipherParams.create({
+    ciphertext: CryptoJS.enc.Hex.parse(hexStr),
+  })
+  const dec = CryptoJS.AES.decrypt(cipherParams, AES_KEY, {
+    iv: AES_IV,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7,
+  })
+  return dec.toString(CryptoJS.enc.Utf8)
+}
+
+interface RequestError extends Error {
+  isTokenExpired?: boolean
 }
 
 async function request(
   path: string,
-  body: Record<string, unknown> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  body: Record<string, unknown> = {},
+  token?: string
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
-  const token = useStore.getState().token
   const hasPayload = Object.keys(body).length > 0
   const requestBody = hasPayload
-    ? { item: encryptPayload(JSON.stringify(body)) }
+    ? { item: aesEncrypt(body) }
     : {}
 
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { 'x-token': token } : {}),
+      ...(token ? { token } : {}),
     },
     body: JSON.stringify(requestBody),
   })
 
+  const raw = await res.text()
+
+  if (raw.trimStart().startsWith('<')) {
+    const err: RequestError = new Error('Token已失效，服务器返回HTML')
+    err.isTokenExpired = true
+    throw err
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: any = await res.json()
+  let data: any = {}
+  try {
+    data = JSON.parse(raw)
+  } catch { /* ignore */ }
 
   if (data.item) {
     try {
-      const decrypted = decryptPayload(data.item)
+      const decrypted = aesDecrypt(data.item)
       const parsed = JSON.parse(decrypted)
       if (parsed.success === false) {
         throw new Error(parsed.message || '请求失败')
@@ -74,57 +86,118 @@ async function request(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function login(openid: string): Promise<any> {
-  return request('/phone/login/wxLogin', { openid })
+export async function wxLogin(openid: string): Promise<any> {
+  return request('/phone/login/wxLogin', { openid, orgid: '2' })
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getUserInfo(): Promise<any> {
-  return request('/userAddress/getUserInfo')
+  return request('/userAddress/getUserInfo', {})
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function checkBlackList(): Promise<any> {
-  return request('/phone/checkBlackList')
+  return request('/phone/checkBlackList', {})
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getBookingNode(): Promise<any> {
-  return request('/phone/getBookingNode', { booktype: '1' })
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function bookingByTime(
   nodeid: string,
   selectdate: string
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   return request('/phone/bookingByTime', { nodeid, selectdate })
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getPayPrice(
-  bookingData: Record<string, unknown>
+  data: Record<string, unknown>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
-  return request('/phone/getPayPrice', bookingData)
+  return request('/phone/getPayPrice', data)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getPaywayList(): Promise<any> {
-  return request('/phone/getPaywayList')
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function createBookingBytime(
   data: Record<string, unknown>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   return request('/phone/createBookingBytime', data)
 }
 
+export async function requestWithRefresh(
+  path: string,
+  body: Record<string, unknown> = {}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function payOrderForPhone(
-  data: Record<string, unknown>
 ): Promise<any> {
-  return request('/phone/payOrderForPhone', data)
+  const token = localStorage.getItem('cugb_token') || undefined
+
+  try {
+    return await request(path, body, token)
+  } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (e?.isTokenExpired) {
+      const openid = localStorage.getItem('cugb_openid')
+      if (openid) {
+        const loginResult = await wxLogin(openid)
+        const newToken =
+          loginResult?.token || (typeof loginResult === 'string' ? loginResult : '')
+        if (newToken) {
+          localStorage.setItem('cugb_token', newToken)
+        }
+        return request(path, body, newToken || undefined)
+      }
+    }
+    throw e
+  }
 }
 
-export { encryptPayload, decryptPayload }
+export async function createGrabTask(data: {
+  openid: string
+  token: string
+  userName: string
+  targetTime: string
+  leadMs: number
+  bookingDate: string
+  cells: Array<{ sitename: string; time: string; courtIdx: number; timeIdx: number }>
+  scheduleSnapshot: Record<string, unknown>
+  people: number
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): Promise<any> {
+  const res = await fetch('/api/grab-tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return res.json()
+}
+
+export async function getGrabTasks(openid: string): // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Promise<any> {
+  const res = await fetch(`/api/grab-tasks?openid=${encodeURIComponent(openid)}`)
+  return res.json()
+}
+
+export async function cancelGrabTask(id: number): // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Promise<any> {
+  const res = await fetch(`/api/grab-tasks/${id}/cancel`, { method: 'PATCH' })
+  return res.json()
+}
+
+export async function deleteGrabTask(id: number): // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Promise<any> {
+  const res = await fetch(`/api/grab-tasks/${id}`, { method: 'DELETE' })
+  return res.json()
+}
+
+export async function saveNotifyConfig(data: { openid: string; serverchanKey: string }): // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Promise<any> {
+  const res = await fetch('/api/notify-config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return res.json()
+}
+
+export async function getNotifyConfig(openid: string): // eslint-disable-next-line @typescript-eslint/no-explicit-any
+Promise<any> {
+  const res = await fetch(`/api/notify-config?openid=${encodeURIComponent(openid)}`)
+  return res.json()
+}

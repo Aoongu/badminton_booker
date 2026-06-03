@@ -1,33 +1,30 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Login from '@/pages/Login'
 import Booking from '@/pages/Booking'
-import AutoGrab from '@/pages/AutoGrab'
 import { useStore } from '@/store/useStore'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useStore((s) => s.token)
-  if (!token) return <Navigate to="/login" replace />
+  const openid = useStore((s) => s.openid)
+  if (!token && !openid) return <Navigate to="/login" replace />
   return <>{children}</>
+}
+
+function LoginRoute() {
+  const navigate = useNavigate()
+  return <Login onLoginSuccess={() => navigate('/booking', { replace: true })} />
 }
 
 export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<LoginRoute />} />
         <Route
           path="/booking"
           element={
             <ProtectedRoute>
               <Booking />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/auto-grab"
-          element={
-            <ProtectedRoute>
-              <AutoGrab />
             </ProtectedRoute>
           }
         />

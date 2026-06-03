@@ -1,467 +1,876 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { LogOut, RefreshCw, ShoppingCart, Clock, Zap } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { RefreshCw, LogOut } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import {
-  bookingByTime,
+  wxLogin,
+  requestWithRefresh,
+  aesEncrypt,
+  aesDecrypt,
   checkBlackList,
-  getPayPrice,
-  createBookingBytime,
+  createGrabTask,
+  getGrabTasks,
+  getNotifyConfig,
 } from '@/utils/api'
+import { showToast, ToastContainer } from '@/components/Toast'
+import CountdownFloat from '@/components/CountdownFloat'
+import LogPanel from '@/components/LogPanel'
+import ServerTaskPanel from '@/components/ServerTaskPanel'
+import NotifyConfig from '@/components/NotifyConfig'
+import TokenArea from '@/components/TokenArea'
 
-interface TimeSlot {
-  time: string
-  status: string
-}
+const VENUE_ID = '889772856316272640'
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
-interface NodeInfo {
-  sitename: string
-  nodeid: string
-}
-
-interface PriceInfo {
-  price: string
-  x: string
-  y: string
-}
-
-interface SelectedCell {
-  timeIdx: number
-  courtIdx: number
-  nodeid: string
-  sitename: string
-  time: string
-  price: string
-}
-
-function getDateLabel(offset: number): string {
+function formatDate(offset: number): string {
   const d = new Date()
   d.setDate(d.getDate() + offset)
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${mm}-${dd}`
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
-function getDateStr(offset: number): string {
+function dateTabLabel(offset: number): string {
   const d = new Date()
   d.setDate(d.getDate() + offset)
-  return d.toISOString().split('T')[0]
-}
-
-const DAY_LABELS = ['当日', '明天', '后天', '大后天']
-const BADMINTON_NODEID = '889772856316272640'
-
-type CellStatus = 1 | 3 | 'course0' | 'course1' | 'course2' | 'course3' | 'course4' | 'course5' | 'course6' | 'course7'
-
-function buildVenueArrayType(
-  venueRow: number,
-  venueCol: number,
-  conflictList: string[],
-  isNew: boolean,
-  bookingstarttime: string,
-  bookingendtime: string,
-  enddate: string,
-  reserveDate: string
-): CellStatus[][] {
-  const grid: CellStatus[][] = Array.from({ length: venueRow }, () =>
-    Array(venueCol).fill(1)
-  )
-
-  const now = new Date()
-  const hh = String(now.getHours()).padStart(2, '0')
-  const mm = String(now.getMinutes()).padStart(2, '0')
-  const currentTime = `${hh}:${mm}`
-
-  if ((!isNew || (isNew && reserveDate === enddate)) && (bookingstarttime > currentTime || bookingendtime < currentTime)) {
-    for (let r = 0; r < venueRow; r++) {
-      for (let c = 0; c < venueCol; c++) {
-        grid[r][c] = 'course7'
-      }
-    }
-  }
-
-  for (const item of conflictList) {
-    const parts = item.split('-')
-    const courtIdx = parseInt(parts[0])
-    const timeIdx = parseInt(parts[1])
-    if (timeIdx < venueRow && courtIdx < venueCol) {
-      if (parts.length > 2) {
-        grid[timeIdx][courtIdx] = ('course' + parts[2]) as CellStatus
-      } else {
-        grid[timeIdx][courtIdx] = 3
-      }
-    }
-  }
-
-  return grid
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const wd = WEEKDAYS[d.getDay()]
+  return `${m}/${day} 周${wd}`
 }
 
 export default function Booking() {
-  const [dayOffset, setDayOffset] = useState(0)
-  const [timeList, setTimeList] = useState<TimeSlot[]>([])
-  const [nodeList, setNodeList] = useState<NodeInfo[]>([])
-  const [priceList, setPriceList] = useState<PriceInfo[]>([])
-  const [venueStatus, setVenueStatus] = useState<CellStatus[][]>([])
-  const [bookingenddate, setBookingenddate] = useState('')
-  const [selected, setSelected] = useState<SelectedCell[]>([])
-  const [loading, setLoading] = useState(false)
-  const [booking, setBooking] = useState(false)
-  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
   const token = useStore((s) => s.token)
-  const userInfo = useStore((s) => s.userInfo)
+  const openid = useStore((s) => s.openid)
+  const userName = useStore((s) => s.userName)
+  const setToken = useStore((s) => s.setToken)
+  const setOpenid = useStore((s) => s.setOpenid)
+  const setUserName = useStore((s) => s.setUserName)
   const logout = useStore((s) => s.logout)
-  const navigate = useNavigate()
 
-  const fetchData = useCallback(async () => {
-    if (!token) {
-      navigate('/login')
-      return
+  const dayOffset = useStore((s) => s.dayOffset)
+  const setDayOffset = useStore((s) => s.setDayOffset)
+
+  const selectedCells = useStore((s) => s.selectedCells)
+  const toggleCell = useStore((s) => s.toggleCell)
+  const setCellState = useStore((s) => s.setCellState)
+  const clearSelection = useStore((s) => s.clearSelection)
+
+  const scheduleData = useStore((s) => s.scheduleData)
+  const setScheduleData = useStore((s) => s.setScheduleData)
+
+  const armed = useStore((s) => s.armed)
+  const firing = useStore((s) => s.firing)
+  const leadMs = useStore((s) => s.leadMs)
+  const openTime = useStore((s) => s.openTime)
+  const people = useStore((s) => s.people)
+  const setArmed = useStore((s) => s.setArmed)
+  const setFiring = useStore((s) => s.setFiring)
+  const setLeadMs = useStore((s) => s.setLeadMs)
+  const setOpenTime = useStore((s) => s.setOpenTime)
+  const setPeople = useStore((s) => s.setPeople)
+
+  const addGrabLog = useStore((s) => s.addGrabLog)
+
+  const grabMode = useStore((s) => s.grabMode)
+  const setGrabMode = useStore((s) => s.setGrabMode)
+  const setServerTasks = useStore((s) => s.setServerTasks)
+  const setNotifyConfig = useStore((s) => s.setNotifyConfig)
+
+  const [loading, setLoading] = useState(false)
+  const [countdown, setCountdown] = useState('--:--:--.---')
+  const [countdownStatus, setCountdownStatus] = useState<'idle' | 'live' | 'soon'>('idle')
+  const [bookedSet, setBookedSet] = useState<Set<string>>(new Set())
+
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const bookingRef = useRef(false)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applySchedule = useCallback((rd: any) => {
+    const nodeList: Array<{ sitename: string; nodeid: string }> = rd.nodeList || []
+    const timeList: Array<{ time: string; status: string }> = rd.timeList || []
+    const priceList: Array<{ price: string; x: string; y: string }> = rd.priceList || []
+    const conflictList: string[] = rd.conflictList || []
+
+    const courts: Record<string, string> = {}
+    const courtOrder: string[] = []
+    for (const node of nodeList) {
+      courts[node.sitename] = node.nodeid
+      courtOrder.push(node.sitename)
     }
-    setLoading(true)
-    setSelected([])
-    setMessage(null)
-    try {
-      const res = await bookingByTime(BADMINTON_NODEID, getDateStr(dayOffset))
-      if (res) {
-        const tl: TimeSlot[] = res.timeList || []
-        const nl: NodeInfo[] = res.nodeList || []
-        const pl: PriceInfo[] = res.priceList || []
-        const cl: string[] = res.conflictList || []
-        setTimeList(tl)
-        setNodeList(nl)
-        setPriceList(pl)
-        setVenueStatus(
-          buildVenueArrayType(
-            tl.length,
-            nl.length,
-            cl,
-            res.isNew || false,
-            res.bookingstarttime || '00:00',
-            res.bookingendtime || '23:59',
-            res.bookingenddate || '',
-            getDateStr(dayOffset)
-          )
-        )
-        setBookingenddate(res.bookingenddate || '')
+
+    const allTimes: string[] = []
+    const times: string[] = []
+    const slotIdx: Record<string, number> = {}
+    for (let i = 0; i < timeList.length; i++) {
+      const t = timeList[i]
+      allTimes.push(t.time)
+      slotIdx[t.time] = i
+      if (t.status === '0') {
+        times.push(t.time)
       }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '未知错误'
-      setMessage({ text: '获取场地信息失败：' + msg, ok: false })
+    }
+
+    const priceMap: Record<string, number> = {}
+    for (const p of priceList) {
+      const key = `${p.y}-${p.x}`
+      priceMap[key] = parseInt(p.price) * 100
+    }
+
+    const booked = new Set<string>()
+    for (const item of conflictList) {
+      const parts = item.split('-')
+      const courtIdx = parseInt(parts[0])
+      const timeIdx = parseInt(parts[1])
+      if (courtIdx < courtOrder.length && timeIdx < allTimes.length) {
+        booked.add(`${courtOrder[courtIdx]}-${allTimes[timeIdx]}`)
+      }
+    }
+    setBookedSet(booked)
+
+    setScheduleData({
+      courts,
+      courtOrder,
+      allTimes,
+      times,
+      slotIdx,
+      timeList,
+      priceMap,
+      loaded: true,
+    })
+    clearSelection()
+  }, [setScheduleData, clearSelection])
+
+  const fetchSchedule = useCallback(async () => {
+    let currentToken = token
+    if (!currentToken) {
+      if (openid) {
+        try {
+          addGrabLog({ type: 'inf', message: '尝试自动登录...' })
+          const loginRes = await wxLogin(openid)
+          const newToken = loginRes?.token || ''
+          const name = loginRes?.name || ''
+          if (newToken) {
+            setToken(newToken)
+            setOpenid(openid)
+            setUserName(name)
+            currentToken = newToken
+            addGrabLog({ type: 'ok', message: '自动登录成功' })
+          }
+        } catch {
+          addGrabLog({ type: 'er', message: '自动登录失败' })
+          return
+        }
+      } else {
+        addGrabLog({ type: 'wn', message: '未登录，请先填写Token或OpenID' })
+        return
+      }
+    }
+
+    setLoading(true)
+    try {
+      const selectdate = formatDate(dayOffset)
+      const res = await requestWithRefresh('/phone/bookingByTime', {
+        nodeid: VENUE_ID,
+        selectdate,
+      })
+      if (res) {
+        applySchedule(res)
+        addGrabLog({ type: 'ok', message: `加载${dateTabLabel(dayOffset)}场地成功` })
+      }
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      addGrabLog({ type: 'er', message: `加载场地失败: ${e?.message || '未知错误'}` })
     } finally {
       setLoading(false)
     }
-  }, [token, dayOffset, navigate])
+  }, [token, openid, dayOffset, setToken, setOpenid, setUserName, addGrabLog, applySchedule])
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
-
-  const getPrice = (timeIdx: number, courtIdx: number): string => {
-    const p = priceList.find(
-      (p) => p.x === String(timeIdx) && p.y === String(courtIdx)
-    )
-    return p ? p.price : ''
-  }
-
-  const isCellAvailable = (timeIdx: number, courtIdx: number): boolean => {
-    const status = venueStatus[timeIdx]?.[courtIdx]
-    return status === 1
-  }
-
-  const isTimeClosed = (timeIdx: number): boolean => {
-    return timeList[timeIdx]?.status === '1'
-  }
-
-  const toggleSelect = (timeIdx: number, courtIdx: number) => {
-    if (!isCellAvailable(timeIdx, courtIdx)) return
-
-    const ts = timeList[timeIdx]
-    const node = nodeList[courtIdx]
-    if (!ts || !node) return
-
-    const exists = selected.find(
-      (s) => s.timeIdx === timeIdx && s.courtIdx === courtIdx
-    )
-    if (exists) {
-      setSelected(selected.filter((s) => s !== exists))
-    } else {
-      setSelected([
-        ...selected,
-        {
-          timeIdx,
-          courtIdx,
-          nodeid: node.nodeid,
-          sitename: node.sitename,
-          time: ts.time,
-          price: getPrice(timeIdx, courtIdx),
-        },
-      ])
+  const fireBooking = useCallback(async () => {
+    if (bookingRef.current) return
+    if (!token) {
+      showToast('er', '未登录，无法预约')
+      return
     }
-  }
+    if (selectedCells.size === 0) {
+      showToast('er', '请先选择场地')
+      return
+    }
+    if (!scheduleData.loaded) {
+      showToast('er', '场地数据未加载')
+      return
+    }
 
-  const totalPrice = selected.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0)
-
-  const handleBooking = async () => {
-    if (selected.length === 0) return
-    setBooking(true)
-    setMessage(null)
+    bookingRef.current = true
+    setFiring(true)
+    addGrabLog({ type: 'inf', message: `开始抢场，共 ${selectedCells.size} 个时段` })
 
     try {
       const blRes = await checkBlackList()
       if (blRes && blRes.isShowBlack) {
-        setMessage({ text: '您已被加入黑名单，无法预约', ok: false })
-        setBooking(false)
+        addGrabLog({ type: 'er', message: '黑名单检查未通过，无法预约' })
+        showToast('er', '您已被加入黑名单，无法预约')
+        bookingRef.current = false
+        setFiring(false)
+        setArmed(false)
         return
       }
+      addGrabLog({ type: 'ok', message: '黑名单检查通过' })
+    } catch {
+      addGrabLog({ type: 'wn', message: '黑名单检查失败，继续抢场' })
+    }
 
-      const selectdate = getDateStr(dayOffset)
-      const coordinatesList = selected.map(
-        (s) => `${s.timeIdx}-${s.courtIdx}`
-      )
+    const groups: Record<string, string[]> = {}
+    for (const key of selectedCells) {
+      const dashIdx = key.indexOf('-')
+      const sitename = key.substring(0, dashIdx)
+      const time = key.substring(dashIdx + 1)
+      if (!groups[sitename]) groups[sitename] = []
+      groups[sitename].push(time)
+    }
 
-      const priceRes = await getPayPrice({
-        nodeList,
-        nodeid: BADMINTON_NODEID,
-        reserveTime: coordinatesList,
-        reserveDate: selectdate,
-        accompanyPerson: [],
-        reservationPerson: userInfo?.idserial || '',
-        appointmentType: '2',
-        timeList,
-      })
+    const promises: Promise<void>[] = []
 
-      if (!priceRes) {
-        setMessage({ text: '获取价格失败，无法预约', ok: false })
-        setBooking(false)
-        return
+    for (const [sitename, times] of Object.entries(groups)) {
+      const courtIdx = scheduleData.courtOrder.indexOf(sitename)
+      const coordinatesList: string[] = []
+      let totalFen = 0
+
+      for (const t of times) {
+        const sIdx = scheduleData.slotIdx[t]
+        if (sIdx === undefined) continue
+        const priceKey = `${courtIdx}-${sIdx}`
+        const price = scheduleData.priceMap[priceKey] || 0
+        totalFen += price
+        coordinatesList.push(`${courtIdx}-${sIdx}`)
       }
 
-      const payprice = priceRes.txamt || '0'
-
-      await createBookingBytime({
-        unitPrice: priceRes.pricemap || priceList,
-        nodeList,
-        payprice,
-        isLastDay: selectdate === bookingenddate,
-        appointmentDate: selectdate,
-        timeList,
+      const body: Record<string, unknown> = {
+        nodeList: scheduleData.courtOrder.map((name) => ({
+          sitename: name,
+          nodeid: scheduleData.courts[name],
+        })),
+        payprice: String(totalFen),
+        isLastDay: false,
+        appointmentDate: formatDate(dayOffset),
+        timeList: scheduleData.timeList,
         coordinatesList,
         booktype: 2,
-        nodeid: BADMINTON_NODEID,
-        childrennum: '5',
+        nodeid: VENUE_ID,
+        childrennum: people,
         followList: [],
-        txamt: payprice,
-        payway: '72',
-      })
+        txamt: totalFen,
+        payway: '77',
+      }
 
-      setMessage({ text: '预约成功！', ok: true })
-      setSelected([])
-      fetchData()
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '未知错误'
-      setMessage({ text: '预约失败：' + msg, ok: false })
-    } finally {
-      setBooking(false)
+      const encrypted = aesEncrypt(body)
+
+      promises.push(
+        fetch('/api/service/appointment/appointment/phone/createBookingBytime', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            token: token,
+          },
+          body: JSON.stringify({ item: encrypted }),
+        })
+          .then(async (r) => {
+            const text = await r.text()
+            if (!r.ok) {
+              throw new Error(`HTTP ${r.status}: ${text.substring(0, 100)}`)
+            }
+            return text
+          })
+          .then((raw) => {
+            if (raw.trimStart().startsWith('<')) {
+              addGrabLog({ type: 'er', message: `${sitename} Token已失效` })
+              return
+            }
+            try {
+              const data = JSON.parse(raw)
+              if (data.item) {
+                const decrypted = aesDecrypt(data.item)
+                const parsed = JSON.parse(decrypted)
+                if (parsed.success === false) {
+                  addGrabLog({ type: 'er', message: `${sitename} ${parsed.message || '预约失败'}` })
+                  return
+                }
+              }
+              addGrabLog({ type: 'ok', message: `${sitename} 提交成功` })
+            } catch {
+              addGrabLog({ type: 'ok', message: `${sitename} 提交成功（响应解析跳过）` })
+            }
+          })
+          .catch((err) => {
+            addGrabLog({ type: 'er', message: `${sitename} 提交失败: ${err?.message || ''}` })
+          })
+      )
+    }
+
+    await Promise.allSettled(promises)
+    addGrabLog({ type: 'inf', message: '抢场请求已全部发出' })
+    bookingRef.current = false
+    setFiring(false)
+    setArmed(false)
+  }, [token, selectedCells, scheduleData, dayOffset, people, setFiring, setArmed, addGrabLog])
+
+  const tick = useCallback(() => {
+    if (!openTime) return
+    const now = new Date()
+    const target = new Date(now)
+    const [h, m] = openTime.split(':').map(Number)
+    target.setHours(h, m, 0, 0)
+    const diff = target.getTime() - now.getTime() - leadMs
+
+    if (diff <= 0 && armed && !firing && !bookingRef.current) {
+      fireBooking()
+    }
+
+    const absDiff = Math.abs(diff)
+    const totalSec = Math.floor(absDiff / 1000)
+    const hh = String(Math.floor(totalSec / 3600)).padStart(2, '0')
+    const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0')
+    const ss = String(totalSec % 60).padStart(2, '0')
+    const ms = String(absDiff % 1000).padStart(3, '0')
+    setCountdown(`${hh}:${mm}:${ss}.${ms}`)
+
+    if (diff <= 0) {
+      setCountdownStatus('idle')
+    } else if (diff <= 60000) {
+      setCountdownStatus('soon')
+    } else if (diff <= 300000) {
+      setCountdownStatus('live')
+    } else {
+      setCountdownStatus('idle')
+    }
+  }, [openTime, leadMs, armed, firing, fireBooking])
+
+  useEffect(() => {
+    if (armed) {
+      tickRef.current = setInterval(tick, 200)
+      tick()
+    } else {
+      if (tickRef.current) {
+        clearInterval(tickRef.current)
+        tickRef.current = null
+      }
+      setCountdown('--:--:--.---')
+      setCountdownStatus('idle')
+    }
+    return () => {
+      if (tickRef.current) {
+        clearInterval(tickRef.current)
+        tickRef.current = null
+      }
+    }
+  }, [armed, tick])
+
+  useEffect(() => {
+    if (!armed) return
+    let released = false
+    navigator.wakeLock?.request('screen').then((lock) => {
+      if (released) {
+        lock.release()
+        return
+      }
+      wakeLockRef.current = lock
+    }).catch(() => {})
+    return () => {
+      released = true
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release()
+        wakeLockRef.current = null
+      }
+    }
+  }, [armed])
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return
+      if (!armed || firing || bookingRef.current) return
+      if (!openTime) return
+      const now = new Date()
+      const target = new Date(now)
+      const [h, m] = openTime.split(':').map(Number)
+      target.setHours(h, m, 0, 0)
+      const diff = target.getTime() - now.getTime() - leadMs
+      if (diff <= 30000 && diff > -5000) {
+        fireBooking()
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [armed, firing, openTime, leadMs, fireBooking])
+
+  useEffect(() => {
+    if (token || openid) {
+      fetchSchedule()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (openid) {
+      refreshServerTasks()
+      getNotifyConfig(openid).then(res => {
+        setNotifyConfig(res.data || res)
+      }).catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openid])
+
+  useEffect(() => {
+    if (token || openid) {
+      fetchSchedule()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayOffset])
+
+  const handleRowSelect = (time: string) => {
+    const isRowSelected = scheduleData.courtOrder.every((court) =>
+      selectedCells.has(`${court}-${time}`)
+    )
+    for (const court of scheduleData.courtOrder) {
+      const key = `${court}-${time}`
+      const sIdx = scheduleData.slotIdx[time]
+      if (sIdx === undefined) continue
+      const isClosed = scheduleData.timeList[sIdx]?.status === '1'
+      if (isClosed) continue
+      const isBooked = bookedSet.has(key)
+      if (isBooked) continue
+      setCellState(key, !isRowSelected)
     }
   }
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
+  const handleColSelect = (court: string) => {
+    const isColSelected = scheduleData.times.every((time) =>
+      selectedCells.has(`${court}-${time}`)
+    )
+    for (const time of scheduleData.times) {
+      const key = `${court}-${time}`
+      if (bookedSet.has(key)) continue
+      setCellState(key, !isColSelected)
+    }
   }
 
-  const getCellLabel = (status: CellStatus): string => {
-    if (status === 1) return '可约'
-    if (status === 3) return '已约'
-    if (status === 'course7') return '不可订'
-    if (typeof status === 'string' && status.startsWith('course')) return '已约'
-    return ''
+  const handleQuickSelect = (mode: string) => {
+    if (mode === 'clear') {
+      clearSelection()
+      return
+    }
+    let startH = 9, endH = 22
+    if (mode === 'day') { startH = 9; endH = 18 }
+    else if (mode === 'night') { startH = 19; endH = 22 }
+    else if (mode === 'all') { startH = 9; endH = 22 }
+
+    const targetTimes = scheduleData.times.filter((t) => {
+      const h = parseInt(t.split(':')[0])
+      return h >= startH && h < endH
+    })
+
+    const allSelected = targetTimes.every((t) =>
+      scheduleData.courtOrder.every((c) => selectedCells.has(`${c}-${t}`))
+    )
+
+    for (const t of targetTimes) {
+      for (const c of scheduleData.courtOrder) {
+        const key = `${c}-${t}`
+        if (bookedSet.has(key)) continue
+        setCellState(key, !allSelected)
+      }
+    }
+  }
+
+  const selectedCount = selectedCells.size
+  const selectedCourts = new Set<string>()
+  const selectedTimesSet = new Set<string>()
+  let totalPriceFen = 0
+
+  for (const key of selectedCells) {
+    const dashIdx = key.indexOf('-')
+    const court = key.substring(0, dashIdx)
+    const time = key.substring(dashIdx + 1)
+    selectedCourts.add(court)
+    selectedTimesSet.add(time)
+    const courtIdx = scheduleData.courtOrder.indexOf(court)
+    const sIdx = scheduleData.slotIdx[time]
+    if (courtIdx >= 0 && sIdx !== undefined) {
+      totalPriceFen += scheduleData.priceMap[`${courtIdx}-${sIdx}`] || 0
+    }
+  }
+
+  const totalPriceYuan = (totalPriceFen / 100).toFixed(2)
+
+  const handleManualBooking = async () => {
+    if (selectedCells.size === 0) {
+      showToast('er', '请先选择场地')
+      return
+    }
+    await fireBooking()
+  }
+
+  const handleArm = () => {
+    if (armed) {
+      setArmed(false)
+      addGrabLog({ type: 'wn', message: '已取消定时抢场' })
+    } else {
+      if (!token) {
+        showToast('er', '请先登录')
+        return
+      }
+      if (selectedCells.size === 0) {
+        showToast('er', '请先选择要抢的场地')
+        return
+      }
+      setArmed(true)
+      addGrabLog({ type: 'ok', message: `已武装，目标时间 ${openTime}` })
+    }
+  }
+
+  const refreshServerTasks = async () => {
+    if (!openid) return
+    try {
+      const res = await getGrabTasks(openid)
+      setServerTasks(res.data || res || [])
+    } catch { /* ignore */ }
+  }
+
+  const submitServerGrab = async () => {
+    if (!token) { showToast('er', '请先登录'); return }
+    if (selectedCells.size === 0) { showToast('er', '请先选择场地'); return }
+    if (!openid) { showToast('er', '缺少openid，无法提交服务端任务'); return }
+
+    const cells = []
+    for (const key of selectedCells) {
+      const dashIdx = key.indexOf('-')
+      const sitename = key.substring(0, dashIdx)
+      const time = key.substring(dashIdx + 1)
+      const courtIdx = scheduleData.courtOrder.indexOf(sitename)
+      const timeIdx = scheduleData.slotIdx[time]
+      if (courtIdx >= 0 && timeIdx !== undefined) {
+        cells.push({ sitename, time, courtIdx, timeIdx })
+      }
+    }
+
+    const bookingDate = formatDate(dayOffset)
+    const targetTime = `${bookingDate}T${openTime}:00`
+
+    try {
+      await createGrabTask({
+        openid,
+        token,
+        userName,
+        targetTime,
+        leadMs,
+        bookingDate,
+        cells,
+        scheduleSnapshot: {
+          courts: scheduleData.courts,
+          courtOrder: scheduleData.courtOrder,
+          allTimes: scheduleData.allTimes,
+          times: scheduleData.times,
+          slotIdx: scheduleData.slotIdx,
+          timeList: scheduleData.timeList,
+          priceMap: scheduleData.priceMap,
+        },
+        people,
+      })
+      showToast('ok', '任务已提交，关闭网页也会在服务端执行')
+      addGrabLog({ type: 'ok', message: '服务端抢场任务已提交' })
+      refreshServerTasks()
+    } catch (e: any) { // eslint-disable-line
+      showToast('er', `提交失败: ${e?.message || ''}`)
+      addGrabLog({ type: 'er', message: `提交服务端任务失败: ${e?.message || ''}` })
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-primary-600 text-white px-4 py-3 flex items-center justify-between shadow-lg">
+    <div className="min-h-screen bg-[#07101f] text-[#f1f5f9] flex flex-col">
+      <header
+        className="px-4 py-3 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg, #0a1628, #1a3a5c)' }}
+      >
         <div>
-          <h1 className="text-lg font-bold">🏸 场地预约</h1>
-          <p className="text-xs text-primary-100">
-            {userInfo?.username || '用户'}
-          </p>
+          <h1 className="text-lg font-bold">
+            🏸 羽毛球<span className="text-blue-400">抢场</span>神器
+          </h1>
+          <p className="text-xs text-[#94a3b8]">CUGB 博达校区</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {userName && (
+            <span className="text-sm text-[#94a3b8]">{userName}</span>
+          )}
           <button
-            className="text-primary-100 hover:text-white p-2"
-            onClick={() => navigate('/auto-grab')}
-            title="自动抢场"
+            className="text-[#94a3b8] hover:text-red-400 p-1 transition-colors"
+            onClick={logout}
           >
-            <Zap className="w-5 h-5" />
-          </button>
-          <button
-            className="text-primary-100 hover:text-white p-2"
-            onClick={handleLogout}
-            title="退出登录"
-          >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      <div className="flex border-b bg-white">
-        {DAY_LABELS.map((label, i) => (
-          <button
-            key={i}
-            className={`flex-1 py-3 text-center text-sm font-medium transition-colors ${
-              dayOffset === i
-                ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => setDayOffset(i)}
-          >
-            <div>{label}</div>
-            <div className="text-xs text-gray-400">{getDateLabel(i)}</div>
-          </button>
-        ))}
+      <div className="px-3 pt-3">
+        <TokenArea />
+      </div>
+
+      <div className="flex border-b border-[#1e3a5f]">
+        {[0, 1, 2].map((offset) => {
+          const labels = ['当日', '明天', '后天']
+          const isActive = dayOffset === offset
+          return (
+            <button
+              key={offset}
+              className={`flex-1 py-3 text-center text-sm font-medium transition-colors ${
+                isActive
+                  ? 'text-blue-400 border-b-2 border-blue-400 bg-[#0f1d30]'
+                  : 'text-[#94a3b8] hover:text-[#f1f5f9]'
+              }`}
+              onClick={() => setDayOffset(offset)}
+            >
+              <div>{labels[offset]}</div>
+              <div className="text-xs text-[#64748b]">{dateTabLabel(offset)}</div>
+            </button>
+          )
+        })}
       </div>
 
       <div className="flex-1 overflow-auto p-2">
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-400">
+          <div className="flex items-center justify-center py-20 text-[#94a3b8]">
             <RefreshCw className="w-6 h-6 animate-spin mr-2" />
             加载中...
           </div>
-        ) : nodeList.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            暂无场地数据
+        ) : !scheduleData.loaded ? (
+          <div className="text-center py-20 text-[#64748b]">
+            暂无场地数据，请先登录
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="booking-grid w-full border-collapse text-xs">
+            <table className="w-full border-collapse text-xs">
               <thead>
                 <tr>
-                  <th className="sticky left-0 bg-gray-100 z-10 min-w-[60px]">
-                    <Clock className="w-3 h-3 mx-auto" />
+                  <th className="sticky left-0 z-10 min-w-[56px] bg-[#0f1d30] px-1 py-2 text-[#94a3b8]">
+                    时间
                   </th>
-                  {nodeList.map((node, i) => (
-                    <th key={i} className="min-w-[70px] px-1">
-                      {node.sitename}
+                  {scheduleData.courtOrder.map((court) => (
+                    <th
+                      key={court}
+                      className="min-w-[64px] px-1 py-2 text-[#94a3b8] cursor-pointer hover:text-blue-400 transition-colors"
+                      onClick={() => handleColSelect(court)}
+                    >
+                      {court}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {timeList.map((ts, ti) => (
-                  <tr key={ti}>
-                    <td
-                      className={`sticky left-0 z-10 font-mono text-center ${
-                        isTimeClosed(ti)
-                          ? 'bg-gray-200 text-gray-400'
-                          : 'bg-gray-50 text-gray-500'
-                      }`}
-                    >
-                      {ts.time}
-                    </td>
-                    {nodeList.map((_, ci) => {
-                      const available = isCellAvailable(ti, ci)
-                      const isSelected = selected.some(
-                        (s) => s.timeIdx === ti && s.courtIdx === ci
-                      )
-                      const status = venueStatus[ti]?.[ci]
-                      const closed = isTimeClosed(ti)
-                      const price = getPrice(ti, ci)
-                      const label = getCellLabel(status as CellStatus)
+                {scheduleData.allTimes.map((time) => {
+                  const sIdx = scheduleData.slotIdx[time]
+                  const isClosed = scheduleData.timeList[sIdx]?.status === '1'
+                  return (
+                    <tr key={time}>
+                      <td
+                        className={`sticky left-0 z-10 font-mono text-center px-1 py-2 cursor-pointer transition-colors ${
+                          isClosed
+                            ? 'bg-[#0a1220] text-[#475569]'
+                            : 'bg-[#0f1d30] text-[#94a3b8] hover:text-blue-400'
+                        }`}
+                        onClick={() => !isClosed && handleRowSelect(time)}
+                      >
+                        {time}
+                      </td>
+                      {scheduleData.courtOrder.map((court) => {
+                        const key = `${court}-${time}`
+                        const courtIdx = scheduleData.courtOrder.indexOf(court)
+                        const priceKey = `${courtIdx}-${sIdx}`
+                        const priceFen = scheduleData.priceMap[priceKey] ?? 0
+                        const isSelected = selectedCells.has(key)
+                        const isBookedCell = bookedSet.has(key)
 
-                      return (
-                        <td key={ci} className="p-0.5">
-                          <button
-                            className={`w-full h-14 rounded text-center transition-all ${
-                              closed
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                : isSelected
-                                ? 'bg-accent-500 text-white shadow-md scale-105'
-                                : available
-                                ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
-                                : 'bg-red-50 text-red-400 cursor-not-allowed'
-                            }`}
-                            disabled={!available || closed}
-                            onClick={() => toggleSelect(ti, ci)}
-                          >
-                            <div className="font-medium">
-                              {isSelected ? '✓' : closed ? '-' : label}
-                            </div>
-                            {price && (
-                              <div
-                                className={`text-[10px] ${
-                                  isSelected ? 'text-white/80' : ''
-                                }`}
-                              >
-                                ¥{price}
-                              </div>
-                            )}
-                          </button>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
+                        let cellBg = ''
+                        let cellContent = ''
+
+                        if (isClosed) {
+                          cellBg = 'bg-[#0a1220] text-[#334155] cursor-not-allowed'
+                          cellContent = '-'
+                        } else if (isBookedCell) {
+                          cellBg = 'bg-[#1a0a0a] text-[#7f1d1d] cursor-not-allowed'
+                          cellContent = priceFen > 0 ? `¥${(priceFen / 100).toFixed(0)}` : '已约'
+                        } else if (isSelected) {
+                          cellBg = 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                          cellContent = '✓'
+                        } else if (priceFen === 1000) {
+                          cellBg = 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 cursor-pointer'
+                          cellContent = '¥10'
+                        } else if (priceFen === 4000) {
+                          cellBg = 'bg-amber-900/40 text-amber-400 hover:bg-amber-900/60 cursor-pointer'
+                          cellContent = '¥40'
+                        } else if (priceFen > 0) {
+                          cellBg = 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 cursor-pointer'
+                          cellContent = `¥${(priceFen / 100).toFixed(0)}`
+                        } else {
+                          cellBg = 'bg-[#0f1d30] text-[#475569] cursor-not-allowed'
+                          cellContent = '-'
+                        }
+
+                        return (
+                          <td key={court} className="p-0.5">
+                            <button
+                              className={`w-full h-12 rounded text-center transition-all ${cellBg}`}
+                              disabled={isClosed || isBookedCell}
+                              onClick={() => {
+                                if (!isClosed && !isBookedCell) toggleCell(key)
+                              }}
+                            >
+                              <div className="font-medium text-xs">{cellContent}</div>
+                            </button>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {message && (
-        <div
-          className={`mx-2 mb-2 p-3 rounded-lg text-sm flex items-center gap-2 ${
-            message.ok
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {message.text}
-          <button
-            className="ml-auto text-gray-400 hover:text-gray-600"
-            onClick={() => setMessage(null)}
-          >
-            ✕
-          </button>
+      {scheduleData.loaded && (
+        <div className="px-3 py-2 flex gap-2 flex-wrap">
+          {[
+            { mode: 'clear', label: '清空' },
+            { mode: 'day', label: '白天(9-18)' },
+            { mode: 'night', label: '晚场(19-22)' },
+            { mode: 'all', label: '全天(9-22)' },
+          ].map(({ mode, label }) => (
+            <button
+              key={mode}
+              className="px-3 py-1.5 rounded text-xs font-medium bg-[#162540] text-[#94a3b8] hover:bg-[#1e3a5f] hover:text-[#f1f5f9] transition-colors"
+              onClick={() => handleQuickSelect(mode)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       )}
 
-      {selected.length > 0 && (
-        <div className="bg-white border-t shadow-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1 text-sm text-gray-600">
-              <ShoppingCart className="w-4 h-4" />
-              已选 {selected.length} 个时段
+      {scheduleData.loaded && (
+        <div className="px-3 py-3 bg-[#0f1d30] border-t border-[#1e3a5f]">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-4 text-sm text-[#94a3b8]">
+              <span>已选 <span className="text-blue-400 font-bold">{selectedCount}</span></span>
+              <span>{selectedCourts.size}场</span>
+              <span>{selectedTimesSet.size}时段</span>
             </div>
-            <div className="text-lg font-bold text-primary-600">
-              ¥{totalPrice.toFixed(2)}
+            <div className="text-lg font-bold text-blue-400">
+              ¥{totalPriceYuan}
             </div>
           </div>
-          <div className="flex flex-wrap gap-1 mb-2">
-            {selected.map((s, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center bg-accent-50 text-accent-700 text-xs px-2 py-1 rounded"
+          <div className="flex gap-2">
+            <button
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50"
+              onClick={handleManualBooking}
+              disabled={selectedCount === 0 || firing}
+            >
+              预约
+            </button>
+            {grabMode === 'browser' ? (
+              <button
+                className={`flex-1 font-medium py-2.5 rounded-lg transition-colors ${
+                  armed
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                }`}
+                onClick={handleArm}
               >
-                {s.sitename} {s.time}
-                <button
-                  className="ml-1 text-accent-400 hover:text-accent-600"
-                  onClick={() => toggleSelect(s.timeIdx, s.courtIdx)}
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
+                {armed ? '🔴 已武装 — 点击取消' : '🚀 启动定时抢场'}
+              </button>
+            ) : (
+              <button
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                onClick={submitServerGrab}
+                disabled={selectedCount === 0}
+              >
+                ☁️ 提交到服务端
+              </button>
+            )}
           </div>
-          <button
-            className="w-full bg-accent-500 hover:bg-accent-600 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50"
-            onClick={handleBooking}
-            disabled={booking}
-          >
-            {booking ? '预约中...' : `预约 (${selected.length})`}
-          </button>
+          <div className="flex gap-2 mt-2">
+            <button
+              className={`flex-1 text-xs py-1.5 rounded transition-colors ${
+                grabMode === 'browser'
+                  ? 'bg-blue-900/50 text-blue-400 border border-blue-500'
+                  : 'bg-[#162540] text-[#64748b] border border-transparent'
+              }`}
+              onClick={() => setGrabMode('browser')}
+            >
+              浏览器抢场
+            </button>
+            <button
+              className={`flex-1 text-xs py-1.5 rounded transition-colors ${
+                grabMode === 'server'
+                  ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-500'
+                  : 'bg-[#162540] text-[#64748b] border border-transparent'
+              }`}
+              onClick={() => setGrabMode('server')}
+            >
+              服务端抢场
+            </button>
+          </div>
         </div>
       )}
+
+      {scheduleData.loaded && (
+        <div className="px-3 py-3 bg-[#0a1628] border-t border-[#1e3a5f]">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-[#94a3b8]">目标</label>
+              <input
+                type="time"
+                className="bg-[#162540] text-[#f1f5f9] text-sm rounded px-2 py-1 border border-[#1e3a5f] focus:border-blue-500 focus:outline-none"
+                value={openTime}
+                onChange={(e) => setOpenTime(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-[#94a3b8]">提前(ms)</label>
+              <input
+                type="number"
+                className="bg-[#162540] text-[#f1f5f9] text-sm rounded px-2 py-1 border border-[#1e3a5f] focus:border-blue-500 focus:outline-none w-20"
+                value={leadMs}
+                onChange={(e) => setLeadMs(Number(e.target.value))}
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-[#94a3b8]">人数</label>
+              <input
+                type="number"
+                className="bg-[#162540] text-[#f1f5f9] text-sm rounded px-2 py-1 border border-[#1e3a5f] focus:border-blue-500 focus:outline-none w-16"
+                value={people}
+                onChange={(e) => setPeople(Number(e.target.value))}
+              />
+            </div>
+          </div>
+          <NotifyConfig />
+        </div>
+      )}
+
+      <CountdownFloat
+        countdown={countdown}
+        label={armed ? `目标 ${openTime}` : '未武装'}
+        status={countdownStatus}
+      />
+
+      <div className="px-3 py-3">
+        <LogPanel />
+      </div>
+
+      <div className="px-3 pb-3">
+        <ServerTaskPanel />
+      </div>
+
+      <ToastContainer />
     </div>
   )
 }
