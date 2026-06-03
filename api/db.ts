@@ -11,8 +11,10 @@ function parseDatabaseUrl(url: string): mysql.PoolOptions {
   };
 }
 
-const poolOptions: mysql.PoolOptions = process.env.DATABASE_URL
-  ? parseDatabaseUrl(process.env.DATABASE_URL)
+const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || ''
+
+const poolOptions: mysql.PoolOptions = dbUrl
+  ? parseDatabaseUrl(dbUrl)
   : {
       host: 'localhost',
       port: 3306,
