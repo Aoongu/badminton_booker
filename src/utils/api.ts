@@ -1,7 +1,7 @@
 import CryptoJS from 'crypto-js'
 
 const API_HOST = import.meta.env.PROD
-  ? 'https://badmintonbooker-production.up.railway.app'
+  ? 'https://badminton-api-265885-8-1314590056.sh.run.tcloudbase.com'
   : ''
 const BASE_URL = `${API_HOST}/api/service/appointment/appointment`
 const AES_KEY = CryptoJS.enc.Utf8.parse('0102030405060708')
