@@ -1,7 +1,4 @@
-import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
-
-dotenv.config();
 
 function parseDatabaseUrl(url: string): mysql.PoolOptions {
   const parsed = new URL(url);
@@ -23,6 +20,8 @@ const poolOptions: mysql.PoolOptions = process.env.DATABASE_URL
       password: '',
       database: 'badminton_booker',
     };
+
+console.log('[DB] Connecting to:', poolOptions.host, ':', poolOptions.port, '/', poolOptions.database);
 
 const pool = mysql.createPool(poolOptions);
 
