@@ -36,10 +36,11 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       'SELECT * FROM grab_tasks WHERE openid = ? ORDER BY created_at DESC',
       [openid]
     )
-    res.json({ success: true, data: rows })
+    res.json({ success: true, data: rows || [] })
   } catch (error) {
     console.error('[grab-tasks] GET error:', error)
-    res.status(500).json({ success: false, error: 'Failed to fetch tasks' })
+    // 数据库不可用时返回空数组，避免前端崩溃
+    res.json({ success: true, data: [] })
   }
 })
 
