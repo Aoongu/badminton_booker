@@ -1,6 +1,7 @@
 import CryptoJS from 'crypto-js'
 
-const BASE_URL = '/api/service/appointment/appointment'
+const API_HOST = import.meta.env.VITE_API_HOST || ''
+const BASE_URL = `${API_HOST}/api/service/appointment/appointment`
 const AES_KEY = CryptoJS.enc.Utf8.parse('0102030405060708')
 const AES_IV = CryptoJS.enc.Utf8.parse('0102030405060708')
 
@@ -160,7 +161,7 @@ export async function createGrabTask(data: {
   people: number
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 }): Promise<any> {
-  const res = await fetch('/api/grab-tasks', {
+  const res = await fetch(`${API_HOST}/api/grab-tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -170,19 +171,19 @@ export async function createGrabTask(data: {
 
 export async function getGrabTasks(openid: string): // eslint-disable-next-line @typescript-eslint/no-explicit-any
 Promise<any> {
-  const res = await fetch(`/api/grab-tasks?openid=${encodeURIComponent(openid)}`)
+  const res = await fetch(`${API_HOST}/api/grab-tasks?openid=${encodeURIComponent(openid)}`)
   return res.json()
 }
 
 export async function cancelGrabTask(id: number): // eslint-disable-next-line @typescript-eslint/no-explicit-any
 Promise<any> {
-  const res = await fetch(`/api/grab-tasks/${id}/cancel`, { method: 'PATCH' })
+  const res = await fetch(`${API_HOST}/api/grab-tasks/${id}/cancel`, { method: 'PATCH' })
   return res.json()
 }
 
 export async function deleteGrabTask(id: number): // eslint-disable-next-line @typescript-eslint/no-explicit-any
 Promise<any> {
-  const res = await fetch(`/api/grab-tasks/${id}`, { method: 'DELETE' })
+  const res = await fetch(`${API_HOST}/api/grab-tasks/${id}`, { method: 'DELETE' })
   return res.json()
 }
 
