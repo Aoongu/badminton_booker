@@ -1,6 +1,6 @@
 # 🏸 羽毛球抢场神器
 
-中国地质大学（北京）羽毛球场地预约自动化工具。通过逆向微信小程序 API，提供 Web 界面进行场地查看、批量预约和定时抢场。
+羽毛球场地预约自动化工具。通过逆向微信小程序 API，提供 Web 界面进行场地查看、批量预约和定时抢场。
 
 > 纯 Cloudflare Worker 单文件版本请切换到 [`main`](https://github.com/Aoongu/badminton_booker/tree/main) 分支。
 
