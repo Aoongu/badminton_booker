@@ -23,8 +23,13 @@ const poolOptions: mysql.PoolOptions = dbUrl
       database: 'badminton_booker',
     };
 
-console.log('[DB] Connecting to:', poolOptions.host, ':', poolOptions.port, '/', poolOptions.database);
+console.log('[DB] Config:', poolOptions.host, ':', poolOptions.port, '/', poolOptions.database);
 
-const pool = mysql.createPool(poolOptions);
+const pool = mysql.createPool({
+  ...poolOptions,
+  waitForConnections: true,
+  connectionLimit: 5,
+  connectTimeout: 5000,
+});
 
 export default pool;
