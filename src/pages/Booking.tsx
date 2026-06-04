@@ -746,9 +746,9 @@ export default function Booking() {
                           <td key={court} className="p-0.5">
                             <button
                               className={`w-full h-12 rounded text-center transition-all ${cellBg}`}
-                              disabled={isClosed || isBookedCell}
+                              disabled={isClosed}
                               onClick={() => {
-                                if (!isClosed && !isBookedCell) toggleCell(key)
+                                if (!isClosed) toggleCell(key)
                               }}
                             >
                               <div className="font-medium text-xs">{cellContent}</div>
