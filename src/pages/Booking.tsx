@@ -126,9 +126,7 @@ export default function Booking() {
       const t = timeList[i]
       allTimes.push(t.time)
       slotIdx[t.time] = i
-      if (t.status === '0') {
-        times.push(t.time)
-      }
+      times.push(t.time)  // 作为抢场工具，所有时段都显示可选
     }
 
     const priceMap: Record<string, number> = {}
@@ -138,14 +136,7 @@ export default function Booking() {
     }
 
     const booked = new Set<string>()
-    for (const item of conflictList) {
-      const parts = item.split('-')
-      const courtIdx = parseInt(parts[0])
-      const timeIdx = parseInt(parts[1])
-      if (courtIdx < courtOrder.length && timeIdx < allTimes.length) {
-        booked.add(`${courtOrder[courtIdx]}-${allTimes[timeIdx]}`)
-      }
-    }
+    // 忽略后端返回的已预约状态，因为我们要抢场
     setBookedSet(booked)
 
     setScheduleData({
@@ -345,6 +336,8 @@ export default function Booking() {
     const { target } = getNextTarget(openTime)
     const diff = target.getTime() - now.getTime()
 
+    console.log(`[tick] 目标时间: ${target.toLocaleTimeString()}, 当前: ${now.toLocaleTimeString()}, diff: ${diff}ms, armed: ${armed}, firing: ${firing}, randomDelay: ${randomDelay}`)
+
     // 首次到目标时间时，随机生成延后时间
     if (diff <= 0 && randomDelay === null && armed && !firing) {
       const delay = Math.floor(Math.random() * 2000) // 0-2秒随机
@@ -354,6 +347,7 @@ export default function Booking() {
 
     // 到延后时间后触发抢场
     const shouldTrigger = diff <= 0 && randomDelay !== null && now.getTime() >= (target.getTime() + randomDelay)
+    console.log(`[tick] shouldTrigger: ${shouldTrigger}, diff<=0: ${diff <= 0}, randomDelay!=null: ${randomDelay !== null}, now>=target+delay: ${randomDelay !== null ? (now.getTime() >= (target.getTime() + randomDelay)) : false}`)
     if (shouldTrigger && armed && !firing && !bookingRef.current) {
       addGrabLog({ type: 'inf', message: `触发抢场! 目标时间: ${target.toLocaleTimeString()}, 延后: ${randomDelay}ms, 当前时间: ${now.toLocaleTimeString()}` })
       fireBooking()
@@ -649,7 +643,6 @@ export default function Booking() {
                         const priceKey = `${courtIdx}-${sIdx}`
                         const priceFen = scheduleData.priceMap[priceKey] ?? 0
                         const isSelected = selectedCells.has(key)
-                        const isBookedCell = bookedSet.has(key)
 
                         let cellBg = ''
                         let cellContent = ''
@@ -657,9 +650,6 @@ export default function Booking() {
                         if (isClosed) {
                           cellBg = 'bg-[#0a1220] text-[#334155] cursor-not-allowed'
                           cellContent = '-'
-                        } else if (isBookedCell) {
-                          cellBg = 'bg-[#1a0a0a] text-[#7f1d1d] cursor-not-allowed'
-                          cellContent = priceFen > 0 ? `¥${(priceFen / 100).toFixed(0)}` : '已约'
                         } else if (isSelected) {
                           cellBg = 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                           cellContent = '✓'
@@ -673,17 +663,18 @@ export default function Booking() {
                           cellBg = 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 cursor-pointer'
                           cellContent = `¥${(priceFen / 100).toFixed(0)}`
                         } else {
-                          cellBg = 'bg-[#0f1d30] text-[#475569] cursor-not-allowed'
-                          cellContent = '-'
+                          // 即使没有价格，也显示可选，用于抢场
+                          cellBg = 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 cursor-pointer'
+                          cellContent = '可抢'
                         }
 
                         return (
                           <td key={court} className="p-0.5">
                             <button
                               className={`w-full h-12 rounded text-center transition-all ${cellBg}`}
-                              disabled={isClosed || isBookedCell}
+                              disabled={isClosed}
                               onClick={() => {
-                                if (!isClosed && !isBookedCell) toggleCell(key)
+                                if (!isClosed) toggleCell(key)
                               }}
                             >
                               <div className="font-medium text-xs">{cellContent}</div>
