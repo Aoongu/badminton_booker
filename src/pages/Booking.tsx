@@ -126,7 +126,7 @@ export default function Booking() {
       const t = timeList[i]
       allTimes.push(t.time)
       slotIdx[t.time] = i
-      times.push(t.time)  // 所有时段都显示可选
+      times.push(t.time)  // 所有时段都显示
     }
 
     const priceMap: Record<string, number> = {}
@@ -710,6 +710,29 @@ export default function Booking() {
           >
             清空
           </button>
+        </div>
+      )}
+
+      {scheduleData.loaded && (
+        <div className="px-3 py-2 bg-[#0a1628] border-t border-[#1e3a5f]">
+          <div className="flex items-center gap-4 flex-wrap text-xs text-[#64748b]">
+            <div className="flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-emerald-900/40 rounded"></span>
+              <span>可约</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-slate-700 rounded"></span>
+              <span>已约（可抢）</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-[#0a1220] rounded"></span>
+              <span>已关闭</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-blue-600 rounded"></span>
+              <span>已选</span>
+            </div>
+          </div>
         </div>
       )}
 
