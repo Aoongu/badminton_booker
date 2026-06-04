@@ -106,9 +106,8 @@ export default function Booking() {
   const bookingRef = useRef(false)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // 判断是否需要过滤后天的早场（后天且当前时间在7:30之前）
-  const shouldFilterTomorrowEarlySlots = (dayOffset: number): boolean => {
-    if (dayOffset !== 2) return false
+  // 判断是否需要过滤后天的早场（还没到7:30开放时间）
+  const isBeforeOpenTime = (): boolean => {
     const now = new Date()
     const openTime = new Date()
     openTime.setHours(7, 30, 0, 0)
@@ -138,12 +137,6 @@ export default function Booking() {
       times.push(t.time)  // 所有时段都显示
     }
 
-    // 解析时间字符串获取小时数
-    const getHourFromTimeStr = (timeStr: string): number => {
-      const h = parseInt(timeStr.split(':')[0])
-      return h
-    }
-
     const priceMap: Record<string, number> = {}
     for (const p of priceList) {
       const key = `${p.y}-${p.x}`
@@ -151,22 +144,17 @@ export default function Booking() {
     }
 
     const booked = new Set<string>()
-    const isFilteringEarlySlots = shouldFilterTomorrowEarlySlots(currentDayOffset)
+    // 如果后天还没到开放时间（当前时间在今天7:30之前），则全部显示为可约
+    const skipConflictCheck = currentDayOffset === 2 && isBeforeOpenTime()
 
-    for (const item of conflictList) {
-      const parts = item.split('-')
-      const courtIdx = parseInt(parts[0])
-      const timeIdx = parseInt(parts[1])
-
-      // 如果是后天且需要过滤早场，跳过0点到7点的时段
-      if (isFilteringEarlySlots && timeIdx < allTimes.length) {
-        const timeStr = allTimes[timeIdx]
-        const hour = getHourFromTimeStr(timeStr)
-        if (hour < 7) continue  // 跳过0-6点
-      }
-
-      if (courtIdx < courtOrder.length && timeIdx < allTimes.length) {
-        booked.add(`${courtOrder[courtIdx]}-${allTimes[timeIdx]}`)
+    if (!skipConflictCheck) {
+      for (const item of conflictList) {
+        const parts = item.split('-')
+        const courtIdx = parseInt(parts[0])
+        const timeIdx = parseInt(parts[1])
+        if (courtIdx < courtOrder.length && timeIdx < allTimes.length) {
+          booked.add(`${courtOrder[courtIdx]}-${allTimes[timeIdx]}`)
+        }
       }
     }
     setBookedSet(booked)
