@@ -654,6 +654,7 @@ export default function Booking() {
 
                         let cellBg = ''
                         let cellContent = ''
+                        let isDisabled = isClosed || isBookedCell
 
                         if (isClosed) {
                           cellBg = 'bg-[#0a1220] text-[#334155] cursor-not-allowed'
@@ -662,9 +663,8 @@ export default function Booking() {
                           cellBg = 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                           cellContent = '✓'
                         } else if (isBookedCell) {
-                          // 已预约但仍可抢，用灰色
-                          cellBg = 'bg-slate-700 text-slate-400 hover:bg-slate-600 cursor-pointer'
-                          cellContent = priceFen > 0 ? `¥${(priceFen / 100).toFixed(0)}` : '可抢'
+                          cellBg = 'bg-red-900/40 text-red-400 cursor-not-allowed'
+                          cellContent = '已约'
                         } else if (priceFen === 1000) {
                           cellBg = 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 cursor-pointer'
                           cellContent = '¥10'
@@ -683,9 +683,9 @@ export default function Booking() {
                           <td key={court} className="p-0.5">
                             <button
                               className={`w-full h-12 rounded text-center transition-all ${cellBg}`}
-                              disabled={isClosed}
+                              disabled={isDisabled}
                               onClick={() => {
-                                if (!isClosed) toggleCell(key)
+                                if (!isDisabled) toggleCell(key)
                               }}
                             >
                               <div className="font-medium text-xs">{cellContent}</div>
@@ -721,8 +721,8 @@ export default function Booking() {
               <span>可约</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-4 h-4 bg-slate-700 rounded"></span>
-              <span>已约（可抢）</span>
+              <span className="w-4 h-4 bg-red-900/40 rounded"></span>
+              <span>已约</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-4 h-4 bg-[#0a1220] rounded"></span>
