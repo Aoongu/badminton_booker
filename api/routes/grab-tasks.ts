@@ -10,10 +10,12 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     return
   }
   try {
+    console.log('[grab-tasks] Attempting to insert task for openid:', openid)
     const [result] = await pool.execute(
       `INSERT INTO grab_tasks (openid, user_name, token, target_time, lead_ms, booking_date, cells, schedule_snapshot, people, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [openid, userName ?? '', token, targetTime, leadMs ?? 0, bookingDate, JSON.stringify(cells), JSON.stringify(scheduleSnapshot), people ?? 5]
     )
+    console.log('[grab-tasks] Insert result:', result)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const insertId = (result as any).insertId
     const [rows] = await pool.execute('SELECT * FROM grab_tasks WHERE id = ?', [insertId])
@@ -21,7 +23,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({ success: true, data: (rows as any[])[0] })
   } catch (error) {
     console.error('[grab-tasks] POST error:', error)
-    res.status(500).json({ success: false, error: 'Failed to create task' })
+    // 把具体错误信息返回给前端
+    const errMsg = error instanceof Error ? error.message : String(error)
+    res.status(500).json({ success: false, error: `Failed to create task: ${errMsg}` })
   }
 })
 

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS grab_tasks (
   people INT DEFAULT 5,
   status ENUM('pending','running','success','failed','cancelled') DEFAULT 'pending',
   result TEXT,
+  random_delay_ms INT DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_status (status),

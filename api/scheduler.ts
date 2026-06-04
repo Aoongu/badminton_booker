@@ -15,34 +15,47 @@ interface GrabTask extends RowDataPacket {
   people: number
   status: string
   result: string | null
+  random_delay_ms: number | null
 }
 
 export function startScheduler(): void {
   setInterval(async () => {
     try {
-      // Atomically claim eligible tasks: pending → running (prevents duplicate execution across ticks)
+      // Step 1: 为刚到目标时间的任务设置随机延后（0-2秒）
       await pool.execute(
-        `UPDATE grab_tasks SET status = 'running'
+        `UPDATE grab_tasks 
+         SET random_delay_ms = FLOOR(RAND() * 2000)
          WHERE status = 'pending'
-           AND UNIX_TIMESTAMP(target_time) * 1000 - lead_ms <= UNIX_TIMESTAMP() * 1000`
+           AND random_delay_ms IS NULL
+           AND target_time <= NOW()`
       )
 
-      const [claimed] = await pool.execute<GrabTask[]>(
-        "SELECT * FROM grab_tasks WHERE status = 'running'"
+      // Step 2: 触发已经到（目标时间 + 随机延后）的任务
+      const [tasksToTrigger] = await pool.execute<GrabTask[]>(
+        `SELECT * FROM grab_tasks 
+         WHERE status = 'pending'
+           AND random_delay_ms IS NOT NULL
+           AND DATE_ADD(target_time, INTERVAL random_delay_ms MILLISECOND) <= NOW()`
       )
 
-      for (const task of claimed) {
+      for (const task of tasksToTrigger) {
+        await pool.execute(
+          "UPDATE grab_tasks SET status = 'running' WHERE id = ?",
+          [task.id]
+        )
+        console.log(`[SCHEDULER] Starting task ${task.id}, delay ${task.random_delay_ms}ms`)
         executeGrabTask(task).catch((err) => {
           console.error(`[SCHEDULER] Task ${task.id} execution error:`, err)
         })
       }
 
+      // 清理过期任务
       await pool.execute(
         "UPDATE grab_tasks SET status = 'cancelled', result = '任务过期未执行' WHERE status = 'pending' AND target_time < DATE_SUB(NOW(), INTERVAL 30 MINUTE)"
       )
 
-      if (claimed.length > 0) {
-        console.log(`[SCHEDULER] Claimed and executing ${claimed.length} task(s)`)
+      if (tasksToTrigger.length > 0) {
+        console.log(`[SCHEDULER] Started ${tasksToTrigger.length} task(s)`)
       }
     } catch (err) {
       console.error('[SCHEDULER] Error:', err)

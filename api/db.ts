@@ -11,10 +11,8 @@ function parseDatabaseUrl(url: string): mysql.PoolOptions {
   };
 }
 
-const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || ''
-
-const poolOptions: mysql.PoolOptions = dbUrl
-  ? parseDatabaseUrl(dbUrl)
+const poolOptions: mysql.PoolOptions = process.env.DATABASE_URL
+  ? parseDatabaseUrl(process.env.DATABASE_URL)
   : {
       host: 'localhost',
       port: 3306,
@@ -23,13 +21,8 @@ const poolOptions: mysql.PoolOptions = dbUrl
       database: 'badminton_booker',
     };
 
-console.log('[DB] Config:', poolOptions.host, ':', poolOptions.port, '/', poolOptions.database);
+console.log('[DB] Connecting to:', poolOptions.host, ':', poolOptions.port, '/', poolOptions.database);
 
-const pool = mysql.createPool({
-  ...poolOptions,
-  waitForConnections: true,
-  connectionLimit: 5,
-  connectTimeout: 5000,
-});
+const pool = mysql.createPool(poolOptions);
 
 export default pool;

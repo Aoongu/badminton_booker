@@ -206,7 +206,11 @@ export default function Booking() {
   }, [token, openid, dayOffset, setToken, setOpenid, setUserName, addGrabLog, applySchedule])
 
   const fireBooking = useCallback(async () => {
-    if (bookingRef.current) return
+    addGrabLog({ type: 'inf', message: `fireBooking 被调用! bookingRef: ${bookingRef.current}, token: ${!!token}, cells: ${selectedCells.size}, loaded: ${scheduleData.loaded}` })
+    if (bookingRef.current) {
+      addGrabLog({ type: 'wn', message: 'bookingRef 已锁定，跳过' })
+      return
+    }
     if (!token) {
       showToast('er', '未登录，无法预约')
       return
@@ -333,13 +337,25 @@ export default function Booking() {
     setArmed(false)
   }, [token, selectedCells, scheduleData, dayOffset, people, setFiring, setArmed, addGrabLog])
 
+  const [randomDelay, setRandomDelay] = useState<number | null>(null)
+  
   const tick = useCallback(() => {
     if (!openTime) return
     const now = new Date()
     const { target } = getNextTarget(openTime)
-    const diff = target.getTime() - now.getTime() - leadMs
+    const diff = target.getTime() - now.getTime()
 
-    if (diff <= 0 && armed && !firing && !bookingRef.current) {
+    // 首次到目标时间时，随机生成延后时间
+    if (diff <= 0 && randomDelay === null && armed && !firing) {
+      const delay = Math.floor(Math.random() * 2000) // 0-2秒随机
+      setRandomDelay(delay)
+      addGrabLog({ type: 'inf', message: `目标时间已到，随机延后 ${delay}ms 抢场` })
+    }
+
+    // 到延后时间后触发抢场
+    const shouldTrigger = diff <= 0 && randomDelay !== null && now.getTime() >= (target.getTime() + randomDelay)
+    if (shouldTrigger && armed && !firing && !bookingRef.current) {
+      addGrabLog({ type: 'inf', message: `触发抢场! 目标时间: ${target.toLocaleTimeString()}, 延后: ${randomDelay}ms, 当前时间: ${now.toLocaleTimeString()}` })
       fireBooking()
     }
 
@@ -359,7 +375,14 @@ export default function Booking() {
     } else {
       setCountdownStatus('idle')
     }
-  }, [openTime, leadMs, armed, firing, fireBooking])
+  }, [openTime, armed, firing, fireBooking, addGrabLog, randomDelay])
+
+  // 重置随机延后时间，方便多次使用
+  useEffect(() => {
+    if (!armed) {
+      setRandomDelay(null)
+    }
+  }, [armed])
 
   useEffect(() => {
     if (openTime) {
