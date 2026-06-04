@@ -134,7 +134,23 @@ export default function Booking() {
       const t = timeList[i]
       allTimes.push(t.time)
       slotIdx[t.time] = i
-      times.push(t.time)  // 所有时段都显示
+    }
+
+    // 过滤无场时段：某个时段所有场地都没有价格数据则隐藏
+    for (const time of allTimes) {
+      const sIdx = slotIdx[time]
+      let hasValidCourt = false
+      for (let courtIdx = 0; courtIdx < courtOrder.length; courtIdx++) {
+        const priceKey = `${courtIdx}-${sIdx}`
+        const priceFen = priceMap[priceKey] ?? 0
+        if (priceFen > 0) {
+          hasValidCourt = true
+          break
+        }
+      }
+      if (hasValidCourt) {
+        times.push(time)
+      }
     }
 
     const priceMap: Record<string, number> = {}
@@ -732,6 +748,10 @@ export default function Booking() {
             <div className="flex items-center gap-1.5">
               <span className="w-4 h-4 bg-emerald-900/40 rounded"></span>
               <span>可约</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-amber-900/40 rounded"></span>
+              <span>¥40</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-4 h-4 bg-red-900/40 rounded"></span>
