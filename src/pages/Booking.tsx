@@ -862,15 +862,7 @@ export default function Booking() {
                 onChange={(e) => setOpenTime(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-1.5">
-              <label className="text-xs text-[#94a3b8]">提前(ms)</label>
-              <input
-                type="number"
-                className="bg-[#162540] text-[#f1f5f9] text-sm rounded px-2 py-1 border border-[#1e3a5f] focus:border-blue-500 focus:outline-none w-20"
-                value={leadMs}
-                onChange={(e) => setLeadMs(Number(e.target.value))}
-              />
-            </div>
+
             <div className="flex items-center gap-1.5">
               <label className="text-xs text-[#94a3b8]">人数</label>
               <input
