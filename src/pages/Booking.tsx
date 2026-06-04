@@ -584,8 +584,9 @@ export default function Booking() {
       addGrabLog({ type: 'ok', message: '服务端抢场任务已提交' })
       refreshServerTasks()
     } catch (e: any) { // eslint-disable-line
-      showToast('er', `提交失败: ${e?.message || ''}`)
-      addGrabLog({ type: 'er', message: `提交服务端任务失败: ${e?.message || ''}` })
+      const errMsg = e?.error || e?.message || JSON.stringify(e) || '未知错误'
+      showToast('er', `提交失败: ${errMsg}`)
+      addGrabLog({ type: 'er', message: `提交服务端任务失败: ${errMsg}` })
     }
   }
 

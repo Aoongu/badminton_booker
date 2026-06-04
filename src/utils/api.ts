@@ -168,7 +168,11 @@ export async function createGrabTask(data: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  return res.json()
+  const result = await res.json()
+  if (!res.ok || !result.success) {
+    throw new Error(result.error || `HTTP ${res.status}`)
+  }
+  return result
 }
 
 export async function getGrabTasks(openid: string): // eslint-disable-next-line @typescript-eslint/no-explicit-any
