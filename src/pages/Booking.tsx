@@ -623,7 +623,6 @@ export default function Booking() {
           <h1 className="text-lg font-bold">
             🏸 羽毛球<span className="text-blue-400">抢场</span>神器
           </h1>
-          <p className="text-xs text-[#94a3b8]">CUGB 博达校区</p>
         </div>
         <div className="flex items-center gap-3">
           {userName && (
