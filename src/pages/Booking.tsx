@@ -127,6 +127,14 @@ export default function Booking() {
       courtOrder.push(node.sitename)
     }
 
+    // 先定义priceMap
+    const priceMap: Record<string, number> = {}
+    for (const p of priceList) {
+      const key = `${p.y}-${p.x}`
+      priceMap[key] = parseInt(p.price) * 100
+    }
+
+    // 构建slotIdx并过滤无场时段
     const allTimes: string[] = []
     const times: string[] = []
     const slotIdx: Record<string, number> = {}
@@ -151,12 +159,6 @@ export default function Booking() {
       if (hasValidCourt) {
         times.push(time)
       }
-    }
-
-    const priceMap: Record<string, number> = {}
-    for (const p of priceList) {
-      const key = `${p.y}-${p.x}`
-      priceMap[key] = parseInt(p.price) * 100
     }
 
     const booked = new Set<string>()
