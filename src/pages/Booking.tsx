@@ -126,7 +126,7 @@ export default function Booking() {
       const t = timeList[i]
       allTimes.push(t.time)
       slotIdx[t.time] = i
-      times.push(t.time)  // 作为抢场工具，所有时段都显示可选
+      times.push(t.time)  // 所有时段都显示可选
     }
 
     const priceMap: Record<string, number> = {}
@@ -136,7 +136,14 @@ export default function Booking() {
     }
 
     const booked = new Set<string>()
-    // 忽略后端返回的已预约状态，因为我们要抢场
+    for (const item of conflictList) {
+      const parts = item.split('-')
+      const courtIdx = parseInt(parts[0])
+      const timeIdx = parseInt(parts[1])
+      if (courtIdx < courtOrder.length && timeIdx < allTimes.length) {
+        booked.add(`${courtOrder[courtIdx]}-${allTimes[timeIdx]}`)
+      }
+    }
     setBookedSet(booked)
 
     setScheduleData({
@@ -643,6 +650,7 @@ export default function Booking() {
                         const priceKey = `${courtIdx}-${sIdx}`
                         const priceFen = scheduleData.priceMap[priceKey] ?? 0
                         const isSelected = selectedCells.has(key)
+                        const isBookedCell = bookedSet.has(key)
 
                         let cellBg = ''
                         let cellContent = ''
@@ -653,6 +661,10 @@ export default function Booking() {
                         } else if (isSelected) {
                           cellBg = 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                           cellContent = '✓'
+                        } else if (isBookedCell) {
+                          // 已预约但仍可抢，用灰色
+                          cellBg = 'bg-slate-700 text-slate-400 hover:bg-slate-600 cursor-pointer'
+                          cellContent = priceFen > 0 ? `¥${(priceFen / 100).toFixed(0)}` : '可抢'
                         } else if (priceFen === 1000) {
                           cellBg = 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 cursor-pointer'
                           cellContent = '¥10'
@@ -663,7 +675,6 @@ export default function Booking() {
                           cellBg = 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 cursor-pointer'
                           cellContent = `¥${(priceFen / 100).toFixed(0)}`
                         } else {
-                          // 即使没有价格，也显示可选，用于抢场
                           cellBg = 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 cursor-pointer'
                           cellContent = '可抢'
                         }
