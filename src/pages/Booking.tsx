@@ -106,7 +106,16 @@ export default function Booking() {
   const bookingRef = useRef(false)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const applySchedule = useCallback((rd: any) => {
+  // 判断是否需要过滤后天的早场（后天且当前时间在7:30之前）
+  const shouldFilterTomorrowEarlySlots = (dayOffset: number): boolean => {
+    if (dayOffset !== 2) return false
+    const now = new Date()
+    const openTime = new Date()
+    openTime.setHours(7, 30, 0, 0)
+    return now.getTime() < openTime.getTime()
+  }
+
+  const applySchedule = useCallback((rd: any, currentDayOffset: number) => {
     const nodeList: Array<{ sitename: string; nodeid: string }> = rd.nodeList || []
     const timeList: Array<{ time: string; status: string }> = rd.timeList || []
     const priceList: Array<{ price: string; x: string; y: string }> = rd.priceList || []
@@ -129,29 +138,35 @@ export default function Booking() {
       times.push(t.time)  // 所有时段都显示
     }
 
+    // 解析时间字符串获取小时数
+    const getHourFromTimeStr = (timeStr: string): number => {
+      const h = parseInt(timeStr.split(':')[0])
+      return h
+    }
+
     const priceMap: Record<string, number> = {}
     for (const p of priceList) {
       const key = `${p.y}-${p.x}`
       priceMap[key] = parseInt(p.price) * 100
     }
 
-    const bookingStartTime = rd.bookingstarttime || '00:00'
-    const [startH, startM] = bookingStartTime.split(':').map(Number)
-    const startMinutes = startH * 60 + startM
-
     const booked = new Set<string>()
+    const isFilteringEarlySlots = shouldFilterTomorrowEarlySlots(currentDayOffset)
+
     for (const item of conflictList) {
       const parts = item.split('-')
       const courtIdx = parseInt(parts[0])
       const timeIdx = parseInt(parts[1])
-      if (courtIdx < courtOrder.length && timeIdx < allTimes.length) {
+
+      // 如果是后天且需要过滤早场，跳过0点到7点的时段
+      if (isFilteringEarlySlots && timeIdx < allTimes.length) {
         const timeStr = allTimes[timeIdx]
-        const [h, m] = timeStr.split(':').map(Number)
-        const timeMinutes = h * 60 + m
-        // 只标记在开放时间之后且已被预约的场地
-        if (timeMinutes >= startMinutes) {
-          booked.add(`${courtOrder[courtIdx]}-${timeStr}`)
-        }
+        const hour = getHourFromTimeStr(timeStr)
+        if (hour < 7) continue  // 跳过0-6点
+      }
+
+      if (courtIdx < courtOrder.length && timeIdx < allTimes.length) {
+        booked.add(`${courtOrder[courtIdx]}-${allTimes[timeIdx]}`)
       }
     }
     setBookedSet(booked)
@@ -203,7 +218,7 @@ export default function Booking() {
         selectdate,
       })
       if (res) {
-        applySchedule(res)
+        applySchedule(res, dayOffset)
         addGrabLog({ type: 'ok', message: `加载${dateTabLabel(dayOffset)}场地成功` })
       }
     } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
