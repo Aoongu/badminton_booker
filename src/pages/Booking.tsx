@@ -446,60 +446,7 @@ export default function Booking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayOffset])
 
-  const handleRowSelect = (time: string) => {
-    const isRowSelected = scheduleData.courtOrder.every((court) =>
-      selectedCells.has(`${court}-${time}`)
-    )
-    for (const court of scheduleData.courtOrder) {
-      const key = `${court}-${time}`
-      const sIdx = scheduleData.slotIdx[time]
-      if (sIdx === undefined) continue
-      const isClosed = scheduleData.timeList[sIdx]?.status === '1'
-      if (isClosed) continue
-      const isBooked = bookedSet.has(key)
-      if (isBooked) continue
-      setCellState(key, !isRowSelected)
-    }
-  }
 
-  const handleColSelect = (court: string) => {
-    const isColSelected = scheduleData.times.every((time) =>
-      selectedCells.has(`${court}-${time}`)
-    )
-    for (const time of scheduleData.times) {
-      const key = `${court}-${time}`
-      if (bookedSet.has(key)) continue
-      setCellState(key, !isColSelected)
-    }
-  }
-
-  const handleQuickSelect = (mode: string) => {
-    if (mode === 'clear') {
-      clearSelection()
-      return
-    }
-    let startH = 9, endH = 22
-    if (mode === 'day') { startH = 9; endH = 18 }
-    else if (mode === 'night') { startH = 19; endH = 22 }
-    else if (mode === 'all') { startH = 9; endH = 22 }
-
-    const targetTimes = scheduleData.times.filter((t) => {
-      const h = parseInt(t.split(':')[0])
-      return h >= startH && h < endH
-    })
-
-    const allSelected = targetTimes.every((t) =>
-      scheduleData.courtOrder.every((c) => selectedCells.has(`${c}-${t}`))
-    )
-
-    for (const t of targetTimes) {
-      for (const c of scheduleData.courtOrder) {
-        const key = `${c}-${t}`
-        if (bookedSet.has(key)) continue
-        setCellState(key, !allSelected)
-      }
-    }
-  }
 
   const selectedCount = selectedCells.size
   const selectedCourts = new Set<string>()
@@ -674,8 +621,7 @@ export default function Booking() {
                   {scheduleData.courtOrder.map((court) => (
                     <th
                       key={court}
-                      className="min-w-[64px] px-1 py-2 text-[#94a3b8] cursor-pointer hover:text-blue-400 transition-colors"
-                      onClick={() => handleColSelect(court)}
+                      className="min-w-[64px] px-1 py-2 text-[#94a3b8]"
                     >
                       {court}
                     </th>
@@ -689,12 +635,11 @@ export default function Booking() {
                   return (
                     <tr key={time}>
                       <td
-                        className={`sticky left-0 z-10 font-mono text-center px-1 py-2 cursor-pointer transition-colors ${
+                        className={`sticky left-0 z-10 font-mono text-center px-1 py-2 ${
                           isClosed
                             ? 'bg-[#0a1220] text-[#475569]'
-                            : 'bg-[#0f1d30] text-[#94a3b8] hover:text-blue-400'
+                            : 'bg-[#0f1d30] text-[#94a3b8]'
                         }`}
-                        onClick={() => !isClosed && handleRowSelect(time)}
                       >
                         {timeToRange(time)}
                       </td>
@@ -757,20 +702,12 @@ export default function Booking() {
 
       {scheduleData.loaded && (
         <div className="px-3 py-2 flex gap-2 flex-wrap">
-          {[
-            { mode: 'clear', label: '清空' },
-            { mode: 'day', label: '白天(9-18)' },
-            { mode: 'night', label: '晚场(19-22)' },
-            { mode: 'all', label: '全天(9-22)' },
-          ].map(({ mode, label }) => (
-            <button
-              key={mode}
-              className="px-3 py-1.5 rounded text-xs font-medium bg-[#162540] text-[#94a3b8] hover:bg-[#1e3a5f] hover:text-[#f1f5f9] transition-colors"
-              onClick={() => handleQuickSelect(mode)}
-            >
-              {label}
-            </button>
-          ))}
+          <button
+            className="px-3 py-1.5 rounded text-xs font-medium bg-[#162540] text-[#94a3b8] hover:bg-[#1e3a5f] hover:text-[#f1f5f9] transition-colors"
+            onClick={() => clearSelection()}
+          >
+            清空
+          </button>
         </div>
       )}
 
