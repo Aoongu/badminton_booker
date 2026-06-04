@@ -156,7 +156,6 @@ export async function createGrabTask(data: {
   token: string
   userName: string
   targetTime: string
-  leadMs: number
   bookingDate: string
   cells: Array<{ sitename: string; time: string; courtIdx: number; timeIdx: number }>
   scheduleSnapshot: Record<string, unknown>

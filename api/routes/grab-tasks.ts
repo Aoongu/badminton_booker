@@ -4,7 +4,7 @@ import pool from '../db.js'
 const router = Router()
 
 router.post('/', async (req: Request, res: Response): Promise<void> => {
-  const { openid, token, userName, targetTime, leadMs, bookingDate, cells, scheduleSnapshot, people } = req.body
+  const { openid, token, userName, targetTime, bookingDate, cells, scheduleSnapshot, people } = req.body
   if (!openid || !token || !targetTime || !bookingDate || !cells || !scheduleSnapshot) {
     res.status(400).json({ success: false, error: 'Missing required fields' })
     return
@@ -13,7 +13,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     console.log('[grab-tasks] Attempting to insert task for openid:', openid)
     const [result] = await pool.execute(
       `INSERT INTO grab_tasks (openid, user_name, token, target_time, lead_ms, booking_date, cells, schedule_snapshot, people, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [openid, userName ?? '', token, targetTime, leadMs ?? 0, bookingDate, JSON.stringify(cells), JSON.stringify(scheduleSnapshot), people ?? 5]
+      [openid, userName ?? '', token, targetTime, 0, bookingDate, JSON.stringify(cells), JSON.stringify(scheduleSnapshot), people ?? 5]
     )
     console.log('[grab-tasks] Insert result:', result)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

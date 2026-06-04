@@ -589,7 +589,6 @@ export default function Booking() {
         token,
         userName,
         targetTime,
-        leadMs,
         bookingDate,
         cells,
         scheduleSnapshot: {
