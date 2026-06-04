@@ -28,7 +28,6 @@ interface GrabTask {
   user_name: string
   token: string
   target_time: Date
-  lead_ms: number
   booking_date: string
   cells: string
   schedule_snapshot: string
