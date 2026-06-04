@@ -135,13 +135,23 @@ export default function Booking() {
       priceMap[key] = parseInt(p.price) * 100
     }
 
+    const bookingStartTime = rd.bookingstarttime || '00:00'
+    const [startH, startM] = bookingStartTime.split(':').map(Number)
+    const startMinutes = startH * 60 + startM
+
     const booked = new Set<string>()
     for (const item of conflictList) {
       const parts = item.split('-')
       const courtIdx = parseInt(parts[0])
       const timeIdx = parseInt(parts[1])
       if (courtIdx < courtOrder.length && timeIdx < allTimes.length) {
-        booked.add(`${courtOrder[courtIdx]}-${allTimes[timeIdx]}`)
+        const timeStr = allTimes[timeIdx]
+        const [h, m] = timeStr.split(':').map(Number)
+        const timeMinutes = h * 60 + m
+        // 只标记在开放时间之后且已被预约的场地
+        if (timeMinutes >= startMinutes) {
+          booked.add(`${courtOrder[courtIdx]}-${timeStr}`)
+        }
       }
     }
     setBookedSet(booked)
