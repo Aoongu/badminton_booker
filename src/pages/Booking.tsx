@@ -425,19 +425,11 @@ export default function Booking() {
 
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState !== 'visible') return
-      if (!armed || firing || bookingRef.current) return
-      if (!openTime) return
-      const now = new Date()
-      const { target } = getNextTarget(openTime)
-      const diff = target.getTime() - now.getTime() - leadMs
-      if (diff <= 30000 && diff > -5000) {
-        fireBooking()
-      }
+      // 可见性变化时只重新评估倒计时，不触发抢场（避免提前触发）
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
-  }, [armed, firing, openTime, leadMs, fireBooking])
+  }, [])
 
   // Combined: fetch schedule on mount + dayOffset change, load server tasks on mount
   const lastFetchRef = useRef<string>('')
@@ -744,9 +736,9 @@ export default function Booking() {
                           <td key={court} className="p-0.5">
                             <button
                               className={`w-full h-12 rounded text-center transition-all ${cellBg}`}
-                              disabled={isClosed}
+                              disabled={isClosed || isBookedCell}
                               onClick={() => {
-                                if (!isClosed) toggleCell(key)
+                                if (!isClosed && !isBookedCell) toggleCell(key)
                               }}
                             >
                               <div className="font-medium text-xs">{cellContent}</div>
