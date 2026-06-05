@@ -1,0 +1,48 @@
+edition: 1.0.0
+name: badmintonbooker
+access: default
+
+vars:
+  region: cn-beijing
+  serviceName: badmintonbooker
+  functionName: badmintonbooker-api
+
+services:
+  badmintonbooker:
+    component: fc
+    props:
+      region: ${vars.region}
+      service:
+        name: ${vars.serviceName}
+        description: 羽毛球抢场后端服务
+        internetAccess: true
+      function:
+        name: ${vars.functionName}
+        description: 后端API函数
+        runtime: custom
+        code: ./
+        handler: index.handler
+        memorySize: 512
+        timeout: 300
+        port: 9000
+        initializationTimeout: 60
+        initializationHandler: index.initializer
+        environmentVariables:
+          DATABASE_URL: ${env(DATABASE_URL)}
+          NODE_ENV: production
+      triggers:
+        - name: http-trigger
+          type: http
+          config:
+            authType: anonymous
+            methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+      customDomains:
+        - domainName: auto
+          protocol: HTTP
+          routeConfigs:
+            - path: /*

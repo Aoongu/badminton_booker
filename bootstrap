@@ -1,0 +1,11 @@
+#!/bin/bash
+# Custom Runtime bootstrap script
+
+# 安装依赖
+if [ -f "package.json" ]; then
+  npm install --omit=dev --production
+fi
+
+# 启动服务
+PORT=9000
+node index.js
