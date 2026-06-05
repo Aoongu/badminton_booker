@@ -1,35 +1,37 @@
-import mysql from 'mysql2/promise';
+import pg from 'pg';
 
-function parseDatabaseUrl(url: string): mysql.PoolOptions {
+const { Pool } = pg;
+
+function parsePostgresUrl(url: string): pg.PoolConfig {
   const parsed = new URL(url);
   return {
     host: parsed.hostname || 'localhost',
-    port: parsed.port ? parseInt(parsed.port, 10) : 3306,
-    user: parsed.username || 'root',
+    port: parsed.port ? parseInt(parsed.port, 10) : 5432,
+    user: parsed.username || 'postgres',
     password: decodeURIComponent(parsed.password || ''),
     database: parsed.pathname.slice(1) || 'badminton_booker',
   };
 }
 
-const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || ''
+const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || ''
 
-const poolOptions: mysql.PoolOptions = dbUrl
-  ? parseDatabaseUrl(dbUrl)
+const poolConfig: pg.PoolConfig = dbUrl
+  ? parsePostgresUrl(dbUrl)
   : {
       host: 'localhost',
-      port: 3306,
-      user: 'root',
+      port: 5432,
+      user: 'postgres',
       password: '',
       database: 'badminton_booker',
     };
 
-console.log('[DB] Config:', poolOptions.host, ':', poolOptions.port, '/', poolOptions.database);
+console.log('[DB] Config:', poolConfig.host, ':', poolConfig.port, '/', poolConfig.database);
 
-const pool = mysql.createPool({
-  ...poolOptions,
-  waitForConnections: true,
-  connectionLimit: 5,
-  connectTimeout: 5000,
+const pool = new Pool({
+  ...poolConfig,
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 export default pool;

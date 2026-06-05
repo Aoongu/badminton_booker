@@ -11,16 +11,12 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   }
   try {
     console.log('[grab-tasks] Attempting to insert task for openid:', openid)
-    const [result] = await pool.execute(
-      `INSERT INTO grab_tasks (openid, user_name, token, target_time, lead_ms, booking_date, cells, schedule_snapshot, people, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    const result = await pool.query(
+      `INSERT INTO grab_tasks (openid, user_name, token, target_time, lead_ms, booking_date, cells, schedule_snapshot, people, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending') RETURNING *`,
       [openid, userName ?? '', token, targetTime, 0, bookingDate, JSON.stringify(cells), JSON.stringify(scheduleSnapshot), people ?? 5]
     )
-    console.log('[grab-tasks] Insert result:', result)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const insertId = (result as any).insertId
-    const [rows] = await pool.execute('SELECT * FROM grab_tasks WHERE id = ?', [insertId])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    res.status(201).json({ success: true, data: (rows as any[])[0] })
+    console.log('[grab-tasks] Insert result:', result.rows[0])
+    res.status(201).json({ success: true, data: result.rows[0] })
   } catch (error) {
     console.error('[grab-tasks] POST error:', error)
     // 把具体错误信息返回给前端
@@ -36,11 +32,11 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     return
   }
   try {
-    const [rows] = await pool.execute(
-      'SELECT * FROM grab_tasks WHERE openid = ? ORDER BY created_at DESC',
+    const result = await pool.query(
+      'SELECT * FROM grab_tasks WHERE openid = $1 ORDER BY created_at DESC',
       [openid]
     )
-    res.json({ success: true, data: rows || [] })
+    res.json({ success: true, data: result.rows || [] })
   } catch (error) {
     console.error('[grab-tasks] GET error:', error)
     // 数据库不可用时返回空数组，避免前端崩溃
@@ -51,19 +47,15 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 router.patch('/:id/cancel', async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params
   try {
-    const [result] = await pool.execute(
-      "UPDATE grab_tasks SET status = 'cancelled' WHERE id = ? AND status = 'pending'",
+    const result = await pool.query(
+      "UPDATE grab_tasks SET status = 'cancelled' WHERE id = $1 AND status = 'pending' RETURNING *",
       [id]
     )
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const affectedRows = (result as any).affectedRows
-    if (affectedRows === 0) {
+    if (result.rows.length === 0) {
       res.status(409).json({ success: false, error: 'Task not pending or not found' })
       return
     }
-    const [rows] = await pool.execute('SELECT * FROM grab_tasks WHERE id = ?', [id])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    res.json({ success: true, data: (rows as any[])[0] })
+    res.json({ success: true, data: result.rows[0] })
   } catch (error) {
     console.error('[grab-tasks] PATCH cancel error:', error)
     res.status(500).json({ success: false, error: 'Failed to cancel task' })
@@ -73,13 +65,11 @@ router.patch('/:id/cancel', async (req: Request, res: Response): Promise<void> =
 router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params
   try {
-    const [result] = await pool.execute(
-      "DELETE FROM grab_tasks WHERE id = ? AND status IN ('success','failed','cancelled')",
+    const result = await pool.query(
+      "DELETE FROM grab_tasks WHERE id = $1 AND status IN ('success','failed','cancelled') RETURNING *",
       [id]
     )
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const affectedRows = (result as any).affectedRows
-    if (affectedRows === 0) {
+    if (result.rows.length === 0) {
       res.status(409).json({ success: false, error: 'Task cannot be deleted (still pending/running or not found)' })
       return
     }

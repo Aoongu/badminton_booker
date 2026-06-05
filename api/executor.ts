@@ -130,7 +130,7 @@ async function bookGroup(
 }
 
 export async function executeGrabTask(task: GrabTask): Promise<void> {
-  await pool.execute('UPDATE grab_tasks SET status = ? WHERE id = ?', ['running', task.id])
+  await pool.query('UPDATE grab_tasks SET status = $1 WHERE id = $2', ['running', task.id])
 
   let cells: CellItem[]
   let snapshot: ScheduleSnapshot
@@ -140,7 +140,7 @@ export async function executeGrabTask(task: GrabTask): Promise<void> {
     snapshot = JSON.parse(task.schedule_snapshot) as ScheduleSnapshot
   } catch {
     const reason = '任务数据解析失败'
-    await pool.execute('UPDATE grab_tasks SET status = ?, result = ? WHERE id = ?', [
+    await pool.query('UPDATE grab_tasks SET status = $1, result = $2 WHERE id = $3', [
       'failed',
       JSON.stringify({ error: reason }),
       task.id,
@@ -176,7 +176,7 @@ export async function executeGrabTask(task: GrabTask): Promise<void> {
     failed: failed.map((r) => ({ sitename: r.sitename, message: r.message })),
   }
 
-  await pool.execute('UPDATE grab_tasks SET status = ?, result = ? WHERE id = ?', [
+  await pool.query('UPDATE grab_tasks SET status = $1, result = $2 WHERE id = $3', [
     overallStatus,
     JSON.stringify(resultDetail),
     task.id,
