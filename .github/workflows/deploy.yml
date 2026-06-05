@@ -24,15 +24,21 @@ jobs:
       - name: Install serverless devs
         run: npm install -g @serverless-devs/s
         
-      - name: Deploy to Alibaba Cloud
+      - name: Configure credentials
         env:
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+        run: |
+          mkdir -p ~/.s
+          cat > ~/.s/credentials << 'EOF'
+          default:
+            Alias: default
+            AccessKeyID: ${ALIBABA_CLOUD_ACCESS_KEY_ID}
+            AccessKeySecret: ${ALIBABA_CLOUD_ACCESS_KEY_SECRET}
+          EOF
+          
+      - name: Deploy to Alibaba Cloud
+        env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          # 设置环境变量
-          export ALIBABA_CLOUD_ACCESS_KEY_ID=$ALIBABA_CLOUD_ACCESS_KEY_ID
-          export ALIBABA_CLOUD_ACCESS_KEY_SECRET=$ALIBABA_CLOUD_ACCESS_KEY_SECRET
-          
-          # 部署
-          DATABASE_URL=$DATABASE_URL s deploy
+          DATABASE_URL=$DATABASE_URL s deploy --access default
