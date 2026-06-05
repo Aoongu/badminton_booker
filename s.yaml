@@ -1,6 +1,5 @@
 edition: 1.0.0
 name: badmintonbooker
-access: ${env(ALIBABA_CLOUD_ACCESS_KEY_ID)}
 
 vars:
   region: cn-beijing
