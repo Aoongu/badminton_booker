@@ -1,6 +1,6 @@
 edition: 1.0.0
 name: badmintonbooker
-access: default
+access: ${env(ALIBABA_CLOUD_ACCESS_KEY_ID)}
 
 vars:
   region: cn-beijing
@@ -25,8 +25,6 @@ services:
         memorySize: 512
         timeout: 300
         port: 9000
-        initializationTimeout: 60
-        initializationHandler: index.initializer
         environmentVariables:
           DATABASE_URL: ${env(DATABASE_URL)}
           NODE_ENV: production

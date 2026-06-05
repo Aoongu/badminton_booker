@@ -30,5 +30,9 @@ jobs:
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          s config add default --AccessKeyID $ALIBABA_CLOUD_ACCESS_KEY_ID --AccessKeySecret $ALIBABA_CLOUD_ACCESS_KEY_SECRET -a default
-          DATABASE_URL=$DATABASE_URL s deploy --access default
+          # 设置环境变量
+          export ALIBABA_CLOUD_ACCESS_KEY_ID=$ALIBABA_CLOUD_ACCESS_KEY_ID
+          export ALIBABA_CLOUD_ACCESS_KEY_SECRET=$ALIBABA_CLOUD_ACCESS_KEY_SECRET
+          
+          # 部署
+          DATABASE_URL=$DATABASE_URL s deploy
